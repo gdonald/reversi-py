@@ -40,32 +40,53 @@ class ReversiGame:
         print("Reversi - Terminal Edition")
         print("Use WASD or arrow keys to move, Enter to place piece, Q to quit\n")
         print(
-            f"Current Player: {'BLACK' if self.current_player == Player.BLACK else 'WHITE'}"
+            f"Current Player: {'BLACK ○' if self.current_player == Player.BLACK else 'WHITE ●'}"
         )
         print(
             f"Game Mode: {'Computer vs Computer' if self.game_mode == GameMode.ZERO_PLAYER else 'Human vs Computer'}"
         )
         print()
 
-        print("   A B C D E F G H")
+        # Column headers with proper spacing
+        print("    A   B   C   D   E   F   G   H")
+        
+        # Top border
+        print("  ┌───┬───┬───┬───┬───┬───┬───┬───┐")
+        
         for row in range(8):
-            print(f"{row + 1}  ", end="")
+            # Row number and left border
+            print(f"{row + 1} │", end="")
+            
             for col in range(8):
+                # Determine what to display in the cell
                 if row == self.cursor_y and col == self.cursor_x:
+                    # Cursor position - show highlighted cell
                     if self.board[row][col] == Player.EMPTY:
-                        print("[·]", end="")
+                        print("[·]", end="")  # Highlighted empty cell
                     elif self.board[row][col] == Player.BLACK:
-                        print("[●]", end="")
+                        print("[○]", end="")  # Highlighted black piece
                     else:
-                        print("[○]", end="")
+                        print("[●]", end="")  # Highlighted white piece
                 else:
+                    # Normal cell display
                     if self.board[row][col] == Player.EMPTY:
-                        print(" · ", end="")
+                        print("   ", end="")  # Empty cell
                     elif self.board[row][col] == Player.BLACK:
-                        print(" ● ", end="")
+                        print(" ○ ", end="")  # Black piece (outline)
                     else:
-                        print(" ○ ", end="")
-            print()
+                        print(" ● ", end="")  # White piece (solid)
+                
+                # Cell separator or right border
+                if col < 7:
+                    print("│", end="")
+                else:
+                    print("│")
+            
+            # Row separator or bottom border
+            if row < 7:
+                print("  ├───┼───┼───┼───┼───┼───┼───┼───┤")
+            else:
+                print("  └───┴───┴───┴───┴───┴───┴───┴───┘")
 
     def is_valid_move(self, row, col, player):
         if self.board[row][col] != Player.EMPTY:
