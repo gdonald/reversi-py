@@ -20,8 +20,8 @@ class ReversiGame:
     def __init__(self):
         self.board = [[Player.EMPTY for _ in range(8)] for _ in range(8)]
         self.current_player = Player.BLACK
-        self.cursor_x = 4
-        self.cursor_y = 4
+        self.cursor_x = 3  # D column (0-indexed)
+        self.cursor_y = 2  # Row 3 (0-indexed)
         self.game_mode = GameMode.ONE_PLAYER
         self.human_player = Player.BLACK  # Player always defaults to black
         self.game_over = False
@@ -216,7 +216,7 @@ class ReversiGame:
                         self.game_mode == GameMode.ZERO_PLAYER
                         or self.current_player != self.human_player
                     ):
-                        time.sleep(2)
+                        time.sleep(1)
                     else:
                         input("Press Enter to continue...")
                     self.current_player = opponent
@@ -235,7 +235,17 @@ class ReversiGame:
                         if self.current_player == Player.BLACK
                         else Player.BLACK
                     )
-                time.sleep(1)
+                    time.sleep(0.5)
+                else:
+                    # Computer has no valid moves - this should have been caught earlier
+                    # Skip turn by switching to the other player
+                    print(f"\nComputer ({('BLACK' if self.current_player == Player.BLACK else 'WHITE')}) has no valid moves. Skipping turn.")
+                    self.current_player = (
+                        Player.WHITE
+                        if self.current_player == Player.BLACK
+                        else Player.BLACK
+                    )
+                    time.sleep(1)
             else:
                 if self.handle_player_input():
                     self.current_player = (
@@ -428,8 +438,8 @@ class ReversiGame:
 
         self.board = [[Player.EMPTY for _ in range(8)] for _ in range(8)]
         self.current_player = Player.BLACK  # Black always goes first
-        self.cursor_x = 4
-        self.cursor_y = 4
+        self.cursor_x = 3  # D column (0-indexed)
+        self.cursor_y = 2  # Row 3 (0-indexed)
         self.game_over = False
         self.initialize_board()
         self.play_game()
