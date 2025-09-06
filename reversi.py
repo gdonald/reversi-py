@@ -23,6 +23,7 @@ class ReversiGame:
         self.cursor_x = 4
         self.cursor_y = 4
         self.game_mode = GameMode.ONE_PLAYER
+        self.human_player = Player.BLACK  # Player always defaults to black
         self.game_over = False
         self.initialize_board()
 
@@ -42,9 +43,11 @@ class ReversiGame:
         print(
             f"Current Player: {'BLACK ○' if self.current_player == Player.BLACK else 'WHITE ●'}"
         )
-        print(
-            f"Game Mode: {'Computer vs Computer' if self.game_mode == GameMode.ZERO_PLAYER else 'Human vs Computer'}"
-        )
+        if self.game_mode == GameMode.ZERO_PLAYER:
+            print("Game Mode: Computer vs Computer")
+        else:
+            human_color = 'BLACK' if self.human_player == Player.BLACK else 'WHITE'
+            print(f"Game Mode: Human ({human_color}) vs Computer")
         print()
 
         # Column headers with proper spacing
@@ -210,8 +213,8 @@ class ReversiGame:
                         f"\nNo valid moves for {'BLACK' if self.current_player == Player.BLACK else 'WHITE'}. Skipping turn."
                     )
                     if (
-                        self.game_mode == GameMode.ONE_PLAYER
-                        or self.current_player == Player.WHITE
+                        self.game_mode == GameMode.ZERO_PLAYER
+                        or self.current_player != self.human_player
                     ):
                         time.sleep(2)
                     else:
@@ -221,7 +224,7 @@ class ReversiGame:
 
             if self.game_mode == GameMode.ZERO_PLAYER or (
                 self.game_mode == GameMode.ONE_PLAYER
-                and self.current_player == Player.WHITE
+                and self.current_player != self.human_player
             ):
                 move = self.get_computer_move()
                 if move:
@@ -400,16 +403,22 @@ class ReversiGame:
     def start_new_game(self):
         while True:
             print("\nSelect game mode:")
-            print("1. Play against computer")
-            print("2. Watch computer vs computer")
+            print("1. Play against computer (as BLACK)")
+            print("2. Play against computer (as WHITE)")
+            print("3. Watch computer vs computer")
             print("q. Quit")
 
             choice = input("Enter your choice: ").lower()
 
             if choice == "1":
                 self.game_mode = GameMode.ONE_PLAYER
+                self.human_player = Player.BLACK
                 break
             elif choice == "2":
+                self.game_mode = GameMode.ONE_PLAYER
+                self.human_player = Player.WHITE
+                break
+            elif choice == "3":
                 self.game_mode = GameMode.ZERO_PLAYER
                 break
             elif choice == "q":
@@ -418,7 +427,7 @@ class ReversiGame:
                 print("Invalid choice. Please try again.")
 
         self.board = [[Player.EMPTY for _ in range(8)] for _ in range(8)]
-        self.current_player = Player.BLACK
+        self.current_player = Player.BLACK  # Black always goes first
         self.cursor_x = 4
         self.cursor_y = 4
         self.game_over = False
