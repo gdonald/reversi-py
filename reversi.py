@@ -8,6 +8,54 @@ import tty
 from enum import Enum
 
 
+class Ai:
+    def __init__(self):
+        pass
+    
+    def get_move(self, board, current_player):
+        """
+        Get a move for the AI player.
+        Returns (row, col) tuple or None if no valid moves.
+        """
+        valid_moves = self._get_valid_moves(board, current_player)
+        if valid_moves:
+            return random.choice(valid_moves)
+        return None
+    
+    def _get_valid_moves(self, board, player):
+        """Get all valid moves for the given player on the given board."""
+        valid_moves = []
+        for row in range(8):
+            for col in range(8):
+                if self._is_valid_move(board, row, col, player):
+                    valid_moves.append((row, col))
+        return valid_moves
+    
+    def _is_valid_move(self, board, row, col, player):
+        """Check if a move is valid for the given player."""
+        if board[row][col] != Player.EMPTY:
+            return False
+        
+        directions = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
+        opponent = Player.WHITE if player == Player.BLACK else Player.BLACK
+        
+        for dr, dc in directions:
+            r, c = row + dr, col + dc
+            found_opponent = False
+            
+            while 0 <= r < 8 and 0 <= c < 8:
+                if board[r][c] == opponent:
+                    found_opponent = True
+                elif board[r][c] == player and found_opponent:
+                    return True
+                else:
+                    break
+                r += dr
+                c += dc
+        
+        return False
+
+
 class Player(Enum):
     EMPTY = 0
     BLACK = 1
@@ -20,7 +68,7 @@ class PlayerCount(Enum):
 
 
 class ReversiGame:
-    def __init__(self):
+    def __init__(self, ai=None):
         self.board = [[Player.EMPTY for _ in range(8)] for _ in range(8)]
         self.current_player = Player.BLACK
         self.cursor_x = 3
@@ -28,6 +76,7 @@ class ReversiGame:
         self.game_mode = PlayerCount.ONE
         self.human_player = Player.BLACK
         self.game_over = False
+        self.ai = ai if ai is not None else Ai()
         self.initialize_board()
 
     def initialize_board(self):
@@ -162,12 +211,6 @@ class ReversiGame:
 
         return True
 
-    def get_computer_move(self):
-        valid_moves = self.get_valid_moves(self.current_player)
-        if valid_moves:
-            return random.choice(valid_moves)
-        return None
-
     def count_pieces(self):
         black_count = sum(row.count(Player.BLACK) for row in self.board)
         white_count = sum(row.count(Player.WHITE) for row in self.board)
@@ -222,7 +265,7 @@ class ReversiGame:
                 self.game_mode == PlayerCount.ONE
                 and self.current_player != self.human_player
             ):
-                move = self.get_computer_move()
+                move = self.ai.get_move(self.board, self.current_player)
                 if move:
                     row, col = move
                     self.make_move(row, col, self.current_player)
@@ -395,7 +438,8 @@ class ReversiGame:
 
 
 def main():
-    game = ReversiGame()
+    ai = Ai()
+    game = ReversiGame(ai)
 
     while True:
         game.start_new_game()
