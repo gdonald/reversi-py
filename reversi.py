@@ -35,7 +35,7 @@ class ReversiGame:
     def display_board(self):
         self.clear_screen()
         print("Reversi - Terminal Edition")
-        print("Use WASD to move, Enter to place piece, Q to quit\n")
+        print("Use WASD or arrow keys to move, Enter to place piece, Q to quit\n")
         print(f"Current Player: {'BLACK' if self.current_player == Player.BLACK else 'WHITE'}")
         print(f"Game Mode: {'Computer vs Computer' if self.game_mode == GameMode.ZERO_PLAYER else 'Human vs Computer'}")
         print()
@@ -185,6 +185,28 @@ class ReversiGame:
                     key = msvcrt.getch()
                     if isinstance(key, bytes):
                         key = key.decode('utf-8')
+                    
+                    # Handle arrow keys on Windows
+                    if key == '\xe0':  # Special key prefix on Windows
+                        key = msvcrt.getch()
+                        if isinstance(key, bytes):
+                            key = key.decode('utf-8')
+                        if key == 'H':  # Up arrow
+                            self.cursor_y = max(0, self.cursor_y - 1)
+                            self.display_board()
+                            continue
+                        elif key == 'P':  # Down arrow
+                            self.cursor_y = min(7, self.cursor_y + 1)
+                            self.display_board()
+                            continue
+                        elif key == 'K':  # Left arrow
+                            self.cursor_x = max(0, self.cursor_x - 1)
+                            self.display_board()
+                            continue
+                        elif key == 'M':  # Right arrow
+                            self.cursor_x = min(7, self.cursor_x + 1)
+                            self.display_board()
+                            continue
                 else:
                     import termios
                     import tty
@@ -195,7 +217,28 @@ class ReversiGame:
                         key = sys.stdin.read(1)
                     finally:
                         termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+                    
+                    # Handle arrow keys on Unix/Linux/Mac
+                    if key == '\x1b':  # ESC sequence
+                        key = sys.stdin.read(2)
+                        if key == '[A':  # Up arrow
+                            self.cursor_y = max(0, self.cursor_y - 1)
+                            self.display_board()
+                            continue
+                        elif key == '[B':  # Down arrow
+                            self.cursor_y = min(7, self.cursor_y + 1)
+                            self.display_board()
+                            continue
+                        elif key == '[D':  # Left arrow
+                            self.cursor_x = max(0, self.cursor_x - 1)
+                            self.display_board()
+                            continue
+                        elif key == '[C':  # Right arrow
+                            self.cursor_x = min(7, self.cursor_x + 1)
+                            self.display_board()
+                            continue
 
+                # Handle WASD and other keys
                 if key.lower() == 'w':
                     self.cursor_y = max(0, self.cursor_y - 1)
                     self.display_board()
@@ -215,9 +258,18 @@ class ReversiGame:
                     else:
                         print("\nInvalid move! Press any key to continue...")
                         if os.name == 'nt':
+                            import msvcrt
                             msvcrt.getch()
                         else:
-                            sys.stdin.read(1)
+                            import termios
+                            import tty
+                            fd = sys.stdin.fileno()
+                            old_settings = termios.tcgetattr(fd)
+                            try:
+                                tty.setraw(fd)
+                                sys.stdin.read(1)
+                            finally:
+                                termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
                         self.display_board()
                 elif key.lower() == 'q':
                     sys.exit(0)
