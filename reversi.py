@@ -4,6 +4,7 @@ import random
 import time
 import termios
 import tty
+import argparse
 
 from enum import Enum
 
@@ -77,6 +78,7 @@ class ReversiGame:
         self.human_player = Player.BLACK
         self.game_over = False
         self.ai = ai if ai is not None else Ai()
+        self.simulation_mode = False
         self.initialize_board()
 
     def initialize_board(self):
@@ -436,11 +438,96 @@ class ReversiGame:
         self.initialize_board()
         self.play_game()
 
+    def simulate_game(self):
+        """Run a single game simulation without UI."""
+        self.board = [[Player.EMPTY for _ in range(8)] for _ in range(8)]
+        self.current_player = Player.BLACK
+        self.game_over = False
+        self.initialize_board()
+        
+        while not self.game_over:
+            valid_moves = self.get_valid_moves(self.current_player)
+            
+            if not valid_moves:
+                opponent = Player.WHITE if self.current_player == Player.BLACK else Player.BLACK
+                opponent_moves = self.get_valid_moves(opponent)
+                
+                if not opponent_moves:
+                    self.game_over = True
+                    break
+                else:
+                    self.current_player = opponent
+                    continue
+            
+            # AI makes a move
+            move = self.ai.get_move(self.board, self.current_player)
+            if move:
+                row, col = move
+                self.make_move(row, col, self.current_player)
+                self.current_player = Player.WHITE if self.current_player == Player.BLACK else Player.BLACK
+            else:
+                # Should not happen if valid_moves was not empty, but handle it
+                opponent = Player.WHITE if self.current_player == Player.BLACK else Player.BLACK
+                self.current_player = opponent
+        
+        return self.get_winner()
+
+    def run_simulations(self, num_games):
+        """Run multiple game simulations and return statistics."""
+        black_wins = 0
+        white_wins = 0
+        ties = 0
+        
+        print(f"Running {num_games} simulations...")
+        
+        for i in range(num_games):
+            if (i + 1) % max(1, num_games // 10) == 0:
+                print(f"Completed {i + 1}/{num_games} games...")
+            
+            winner = self.simulate_game()
+            
+            if winner == Player.BLACK:
+                black_wins += 1
+            elif winner == Player.WHITE:
+                white_wins += 1
+            else:
+                ties += 1
+        
+        print(f"\nSimulation Results ({num_games} games):")
+        print(f"Black wins: {black_wins} ({black_wins/num_games*100:.1f}%)")
+        print(f"White wins: {white_wins} ({white_wins/num_games*100:.1f}%)")
+        print(f"Ties: {ties} ({ties/num_games*100:.1f}%)")
+        
+        return {
+            'black_wins': black_wins,
+            'white_wins': white_wins,
+            'ties': ties,
+            'total_games': num_games
+        }
+
 
 def main():
+    parser = argparse.ArgumentParser(description='Reversi - Terminal Edition')
+    parser.add_argument('--simulate', action='store_true', 
+                        help='Run in simulation mode (computer vs computer, no UI)')
+    parser.add_argument('--games', type=int, default=1000, 
+                        help='Number of games to simulate (default: 1000, only used with --simulate)')
+    
+    args = parser.parse_args()
+    
     ai = Ai()
     game = ReversiGame(ai)
-
+    
+    if args.simulate:
+        # Run simulation mode
+        if args.games <= 0:
+            print("Number of games must be positive")
+            sys.exit(1)
+        
+        game.run_simulations(args.games)
+        return
+    
+    # Normal interactive mode
     while True:
         game.start_new_game()
 
