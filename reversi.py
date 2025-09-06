@@ -2,28 +2,31 @@ import os
 import sys
 import random
 import time
+import termios
+import tty
+
 from enum import Enum
 
 
 class Player(Enum):
+    EMPTY = 0
     BLACK = 1
     WHITE = 2
-    EMPTY = 0
 
 
-class GameMode(Enum):
-    ZERO_PLAYER = 0
-    ONE_PLAYER = 1
+class PlayerCount(Enum):
+    ZERO = 0
+    ONE = 1
 
 
 class ReversiGame:
     def __init__(self):
         self.board = [[Player.EMPTY for _ in range(8)] for _ in range(8)]
         self.current_player = Player.BLACK
-        self.cursor_x = 3  # D column (0-indexed)
-        self.cursor_y = 2  # Row 3 (0-indexed)
-        self.game_mode = GameMode.ONE_PLAYER
-        self.human_player = Player.BLACK  # Player always defaults to black
+        self.cursor_x = 3
+        self.cursor_y = 2
+        self.game_mode = PlayerCount.ONE
+        self.human_player = Player.BLACK
         self.game_over = False
         self.initialize_board()
 
@@ -34,58 +37,51 @@ class ReversiGame:
         self.board[4][4] = Player.WHITE
 
     def clear_screen(self):
-        os.system("cls" if os.name == "nt" else "clear")
+        os.system("clear")
 
     def display_board(self):
         self.clear_screen()
+
         print("Reversi - Terminal Edition")
         print("Use WASD or arrow keys to move, Enter to place piece, Q to quit\n")
         print(
             f"Current Player: {'BLACK ○' if self.current_player == Player.BLACK else 'WHITE ●'}"
         )
-        if self.game_mode == GameMode.ZERO_PLAYER:
+
+        if self.game_mode == PlayerCount.ZERO:
             print("Game Mode: Computer vs Computer")
         else:
-            human_color = 'BLACK' if self.human_player == Player.BLACK else 'WHITE'
+            human_color = "BLACK" if self.human_player == Player.BLACK else "WHITE"
             print(f"Game Mode: Human ({human_color}) vs Computer")
-        print()
 
-        # Column headers with proper spacing
+        print()
         print("    A   B   C   D   E   F   G   H")
-        
-        # Top border
         print("  ┌───┬───┬───┬───┬───┬───┬───┬───┐")
-        
+
         for row in range(8):
-            # Row number and left border
             print(f"{row + 1} │", end="")
-            
+
             for col in range(8):
-                # Determine what to display in the cell
                 if row == self.cursor_y and col == self.cursor_x:
-                    # Cursor position - show highlighted cell
                     if self.board[row][col] == Player.EMPTY:
-                        print("[·]", end="")  # Highlighted empty cell
+                        print("[·]", end="")
                     elif self.board[row][col] == Player.BLACK:
-                        print("[○]", end="")  # Highlighted black piece
+                        print("[○]", end="")
                     else:
-                        print("[●]", end="")  # Highlighted white piece
+                        print("[●]", end="")
                 else:
-                    # Normal cell display
                     if self.board[row][col] == Player.EMPTY:
-                        print("   ", end="")  # Empty cell
+                        print("   ", end="")
                     elif self.board[row][col] == Player.BLACK:
-                        print(" ○ ", end="")  # Black piece (outline)
+                        print(" ○ ", end="")
                     else:
-                        print(" ● ", end="")  # White piece (solid)
-                
-                # Cell separator or right border
+                        print(" ● ", end="")
+
                 if col < 7:
                     print("│", end="")
                 else:
                     print("│")
-            
-            # Row separator or bottom border
+
             if row < 7:
                 print("  ├───┼───┼───┼───┼───┼───┼───┼───┤")
             else:
@@ -213,7 +209,7 @@ class ReversiGame:
                         f"\nNo valid moves for {'BLACK' if self.current_player == Player.BLACK else 'WHITE'}. Skipping turn."
                     )
                     if (
-                        self.game_mode == GameMode.ZERO_PLAYER
+                        self.game_mode == PlayerCount.ZERO
                         or self.current_player != self.human_player
                     ):
                         time.sleep(1)
@@ -222,8 +218,8 @@ class ReversiGame:
                     self.current_player = opponent
                     continue
 
-            if self.game_mode == GameMode.ZERO_PLAYER or (
-                self.game_mode == GameMode.ONE_PLAYER
+            if self.game_mode == PlayerCount.ZERO or (
+                self.game_mode == PlayerCount.ONE
                 and self.current_player != self.human_player
             ):
                 move = self.get_computer_move()
@@ -237,9 +233,9 @@ class ReversiGame:
                     )
                     time.sleep(0.5)
                 else:
-                    # Computer has no valid moves - this should have been caught earlier
-                    # Skip turn by switching to the other player
-                    print(f"\nComputer ({('BLACK' if self.current_player == Player.BLACK else 'WHITE')}) has no valid moves. Skipping turn.")
+                    print(
+                        f"\nComputer ({('BLACK' if self.current_player == Player.BLACK else 'WHITE')}) has no valid moves. Skipping turn."
+                    )
                     self.current_player = (
                         Player.WHITE
                         if self.current_player == Player.BLACK
@@ -259,65 +255,33 @@ class ReversiGame:
     def handle_player_input(self):
         while True:
             try:
-                if os.name == "nt":
-                    import msvcrt
+                fd = sys.stdin.fileno()
+                old_settings = termios.tcgetattr(fd)
 
-                    key = msvcrt.getch()
-                    if isinstance(key, bytes):
-                        key = key.decode("utf-8")
+                try:
+                    tty.setraw(fd)
+                    key = sys.stdin.read(1)
+                finally:
+                    termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
 
-                    # Handle arrow keys on Windows
-                    if key == "\xe0":  # Special key prefix on Windows
-                        key = msvcrt.getch()
-                        if isinstance(key, bytes):
-                            key = key.decode("utf-8")
-                        if key == "H":  # Up arrow
-                            self.cursor_y = max(0, self.cursor_y - 1)
-                            self.display_board()
-                            continue
-                        elif key == "P":  # Down arrow
-                            self.cursor_y = min(7, self.cursor_y + 1)
-                            self.display_board()
-                            continue
-                        elif key == "K":  # Left arrow
-                            self.cursor_x = max(0, self.cursor_x - 1)
-                            self.display_board()
-                            continue
-                        elif key == "M":  # Right arrow
-                            self.cursor_x = min(7, self.cursor_x + 1)
-                            self.display_board()
-                            continue
-                else:
-                    import termios
-                    import tty
-
-                    fd = sys.stdin.fileno()
-                    old_settings = termios.tcgetattr(fd)
-                    try:
-                        tty.setraw(fd)
-                        key = sys.stdin.read(1)
-                    finally:
-                        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
-
-                    # Handle arrow keys on Unix/Linux/Mac
-                    if key == "\x1b":  # ESC sequence
-                        key = sys.stdin.read(2)
-                        if key == "[A":  # Up arrow
-                            self.cursor_y = max(0, self.cursor_y - 1)
-                            self.display_board()
-                            continue
-                        elif key == "[B":  # Down arrow
-                            self.cursor_y = min(7, self.cursor_y + 1)
-                            self.display_board()
-                            continue
-                        elif key == "[D":  # Left arrow
-                            self.cursor_x = max(0, self.cursor_x - 1)
-                            self.display_board()
-                            continue
-                        elif key == "[C":  # Right arrow
-                            self.cursor_x = min(7, self.cursor_x + 1)
-                            self.display_board()
-                            continue
+                if key == "\x1b":  # ESC sequence
+                    key = sys.stdin.read(2)
+                    if key == "[A":  # Up arrow
+                        self.cursor_y = max(0, self.cursor_y - 1)
+                        self.display_board()
+                        continue
+                    elif key == "[B":  # Down arrow
+                        self.cursor_y = min(7, self.cursor_y + 1)
+                        self.display_board()
+                        continue
+                    elif key == "[D":  # Left arrow
+                        self.cursor_x = max(0, self.cursor_x - 1)
+                        self.display_board()
+                        continue
+                    elif key == "[C":  # Right arrow
+                        self.cursor_x = min(7, self.cursor_x + 1)
+                        self.display_board()
+                        continue
 
                 # Handle WASD and other keys
                 if key.lower() == "w":
@@ -342,22 +306,16 @@ class ReversiGame:
                         return True
                     else:
                         print("\nInvalid move! Press any key to continue...")
-                        if os.name == "nt":
-                            import msvcrt
 
-                            msvcrt.getch()
-                        else:
-                            import termios
-                            import tty
-
-                            fd = sys.stdin.fileno()
-                            old_settings = termios.tcgetattr(fd)
-                            try:
-                                tty.setraw(fd)
-                                sys.stdin.read(1)
-                            finally:
-                                termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+                        fd = sys.stdin.fileno()
+                        old_settings = termios.tcgetattr(fd)
+                        try:
+                            tty.setraw(fd)
+                            sys.stdin.read(1)
+                        finally:
+                            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
                         self.display_board()
+
                 elif key.lower() == "q":
                     self.confirm_quit()
             except KeyboardInterrupt:
@@ -367,23 +325,14 @@ class ReversiGame:
         print("\nAre you sure you want to quit? [y/n]: ", end="", flush=True)
 
         try:
-            if os.name == "nt":
-                import msvcrt
+            fd = sys.stdin.fileno()
+            old_settings = termios.tcgetattr(fd)
 
-                key = msvcrt.getch()
-                if isinstance(key, bytes):
-                    key = key.decode("utf-8")
-            else:
-                import termios
-                import tty
-
-                fd = sys.stdin.fileno()
-                old_settings = termios.tcgetattr(fd)
-                try:
-                    tty.setraw(fd)
-                    key = sys.stdin.read(1)
-                finally:
-                    termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+            try:
+                tty.setraw(fd)
+                key = sys.stdin.read(1)
+            finally:
+                termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
 
             print(key)  # Echo the key pressed
 
@@ -421,15 +370,15 @@ class ReversiGame:
             choice = input("Enter your choice: ").lower()
 
             if choice == "1":
-                self.game_mode = GameMode.ONE_PLAYER
+                self.game_mode = PlayerCount.ONE
                 self.human_player = Player.BLACK
                 break
             elif choice == "2":
-                self.game_mode = GameMode.ONE_PLAYER
+                self.game_mode = PlayerCount.ONE
                 self.human_player = Player.WHITE
                 break
             elif choice == "3":
-                self.game_mode = GameMode.ZERO_PLAYER
+                self.game_mode = PlayerCount.ZERO
                 break
             elif choice == "q":
                 sys.exit(0)
@@ -437,9 +386,9 @@ class ReversiGame:
                 print("Invalid choice. Please try again.")
 
         self.board = [[Player.EMPTY for _ in range(8)] for _ in range(8)]
-        self.current_player = Player.BLACK  # Black always goes first
-        self.cursor_x = 3  # D column (0-indexed)
-        self.cursor_y = 2  # Row 3 (0-indexed)
+        self.current_player = Player.BLACK
+        self.cursor_x = 3
+        self.cursor_y = 2
         self.game_over = False
         self.initialize_board()
         self.play_game()
@@ -455,25 +404,15 @@ def main():
             print("\nPlay again? (y/n): ", end="", flush=True)
 
             try:
-                if os.name == "nt":
-                    import msvcrt
+                fd = sys.stdin.fileno()
+                old_settings = termios.tcgetattr(fd)
+                try:
+                    tty.setraw(fd)
+                    key = sys.stdin.read(1)
+                finally:
+                    termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
 
-                    key = msvcrt.getch()
-                    if isinstance(key, bytes):
-                        key = key.decode("utf-8")
-                else:
-                    import termios
-                    import tty
-
-                    fd = sys.stdin.fileno()
-                    old_settings = termios.tcgetattr(fd)
-                    try:
-                        tty.setraw(fd)
-                        key = sys.stdin.read(1)
-                    finally:
-                        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
-
-                print(key)  # Echo the key pressed
+                print(key)
 
                 if key.lower() == "y":
                     break
