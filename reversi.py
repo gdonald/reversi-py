@@ -94,13 +94,14 @@ class ReversiGame:
         self.board[4][4] = Player.WHITE
 
     def clear_screen(self):
-        os.system("clear")
+        os.system("export TERM=linux; clear")
+        print("Reversi")
 
     def display_board(self):
         self.clear_screen()
 
-        print("Reversi - Terminal Edition")
-        print("Use WASD or arrow keys to move, Enter to place piece, Q to quit\n")
+        print("\nUse WASD or arrow keys to move")
+        print("Press enter to place piece\n")
         print(
             f"Current Player: {'BLACK ○' if self.current_player == Player.BLACK else 'WHITE ●'}"
         )
@@ -282,7 +283,7 @@ class ReversiGame:
                         if self.current_player == Player.BLACK
                         else Player.BLACK
                     )
-                    time.sleep(0.5)
+                    time.sleep(0.25)
                 else:
                     print(
                         f"\nComputer ({('BLACK' if self.current_player == Player.BLACK else 'WHITE')}) has no valid moves. Skipping turn."
@@ -388,7 +389,7 @@ class ReversiGame:
             print(key)
 
             if key.lower() == "y":
-                print("Thanks for playing!")
+                print("\nThanks for playing!")
                 sys.exit(0)
             else:
                 self.display_board()
@@ -411,14 +412,16 @@ class ReversiGame:
             print(f"Winner: {'BLACK' if winner == Player.BLACK else 'WHITE'}!")
 
     def start_new_game(self):
+        self.clear_screen()
+
         while True:
-            print("\nSelect game mode:")
-            print("1. Play against computer (as BLACK)")
-            print("2. Play against computer (as WHITE)")
-            print("3. Watch computer vs computer")
+            print("\nSelect game mode:\n")
+            print("1. Human against computer (play as black)")
+            print("2. Human against computer (play as white)")
+            print("3. Computer versus computer")
             print("q. Quit")
 
-            choice = input("Enter your choice: ").lower()
+            choice = input("\nEnter your choice: ").lower()
 
             if choice == "1":
                 self.game_mode = PlayerCount.ONE
@@ -588,7 +591,7 @@ def main():
                 if key.lower() == "y":
                     break
                 elif key.lower() == "n":
-                    print("Thanks for playing!")
+                    print("\nThanks for playing!")
                     sys.exit(0)
                 else:
                     print("Please enter 'y' for yes or 'n' for no.")
