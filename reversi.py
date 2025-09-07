@@ -448,7 +448,6 @@ class ReversiGame:
         self.play_game()
 
     def simulate_game(self):
-        """Run a single game simulation without UI."""
         self.board = [[Player.EMPTY for _ in range(8)] for _ in range(8)]
         self.current_player = Player.BLACK
         self.game_over = False
