@@ -26,10 +26,8 @@ def policy_agreement(model, replay, n=512, device="cpu"):
     logits, _ = model(xs)
     probs = torch.softmax(logits, dim=-1)
 
-    # top-1 agreement with MCTS
     agree = (probs.argmax(dim=1) == pis.argmax(dim=1)).float().mean().item()
 
-    # KL(MCTS || net) over support of MCTS (mask zeros to avoid nan)
     eps = 1e-8
     kl = (
         (pis * (torch.log(pis + eps) - torch.log(probs + eps))).sum(dim=1).mean().item()
@@ -83,22 +81,20 @@ def main():
 
     for it in range(1, args.iters + 1):
         t0 = time.time()
-        # 1 Self play
+
         data = generate_selfplay(
             model, args.games_per_iter, args.mcts_sims, args.temp_moves
         )
         replay.add_many(data)
 
-        # 2 Training
         losses = []
+
         for _ in range(args.train_steps):
             if len(replay.buf) < args.batch_size:
                 break
+
             batch = replay.sample(args.batch_size)
-
-            # loss = train_step(model, opt, batch)
             loss = train_step(model, opt, batch, device=device)
-
             losses.append(loss)
 
         dt = time.time() - t0
@@ -112,11 +108,10 @@ def main():
             "replay_size": len(replay.buf),
             "selfplay_positions": len(data),
             "secs": float(dt),
-            "policy_top1_agree": agree,  # goes up
-            "policy_kl": kl,  # goes down
+            "policy_top1_agree": agree,
+            "policy_kl": kl,
         }
 
-        # 3 Save checkpoint
         ckpt_path = os.path.join(args.outdir, f"run-{it:05d}.pt")
         best_path = os.path.join(args.outdir, "best.pt")
         latest_path = os.path.join(args.outdir, "latest.pt")

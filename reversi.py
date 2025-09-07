@@ -8,7 +8,7 @@ import argparse
 import torch
 
 from enum import Enum
-from model import OthelloNet  # your policy-value net
+from model import OthelloNet
 from model_ai import ModelAi
 
 
@@ -17,17 +17,12 @@ class Ai:
         pass
 
     def get_move(self, board, current_player):
-        """
-        Get a move for the AI player.
-        Returns (row, col) tuple or None if no valid moves.
-        """
         valid_moves = self._get_valid_moves(board, current_player)
         if valid_moves:
             return random.choice(valid_moves)
         return None
 
     def _get_valid_moves(self, board, player):
-        """Get all valid moves for the given player on the given board."""
         valid_moves = []
         for row in range(8):
             for col in range(8):
@@ -36,7 +31,6 @@ class Ai:
         return valid_moves
 
     def _is_valid_move(self, board, row, col, player):
-        """Check if a move is valid for the given player."""
         if board[row][col] != Player.EMPTY:
             return False
 
@@ -391,7 +385,7 @@ class ReversiGame:
             finally:
                 termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
 
-            print(key)  # Echo the key pressed
+            print(key)
 
             if key.lower() == "y":
                 print("Thanks for playing!")
@@ -475,7 +469,6 @@ class ReversiGame:
                     self.current_player = opponent
                     continue
 
-            # AI makes a move
             move = self.ai.get_move(self.board, self.current_player)
             if move:
                 row, col = move
@@ -486,7 +479,6 @@ class ReversiGame:
                     else Player.BLACK
                 )
             else:
-                # Should not happen if valid_moves was not empty, but handle it
                 opponent = (
                     Player.WHITE
                     if self.current_player == Player.BLACK
@@ -497,7 +489,6 @@ class ReversiGame:
         return self.get_winner()
 
     def run_simulations(self, num_games):
-        """Run multiple game simulations and return statistics."""
         black_wins = 0
         white_wins = 0
         ties = 0
@@ -532,8 +523,8 @@ class ReversiGame:
 
 def load_model(path):
     m = OthelloNet()
-    checkpoint = torch.load(path, map_location="cpu")
-    m.load_state_dict(checkpoint["model"])
+    ckpt = torch.load(path, map_location="cpu", weights_only=False)
+    m.load_state_dict(ckpt["model"])
     m.eval()
     return m
 
@@ -564,12 +555,12 @@ def main():
         ai = Ai()
 
     game = ReversiGame(ai)
+    ai.game_ref = game
 
     if hasattr(ai, "game_ref"):
         ai.game_ref = game
 
     if args.simulate:
-        # Run simulation mode
         if args.games <= 0:
             print("Number of games must be positive")
             sys.exit(1)
@@ -577,7 +568,6 @@ def main():
         game.run_simulations(args.games)
         return
 
-    # Normal interactive mode
     while True:
         game.start_new_game()
 
