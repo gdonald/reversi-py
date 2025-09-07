@@ -8,7 +8,7 @@ import argparse
 import torch
 
 from enum import Enum
-from model import OthelloNet
+from model import ReversiNet
 from model_ai import ModelAi
 
 
@@ -522,7 +522,7 @@ class ReversiGame:
 
 
 def load_model(path):
-    m = OthelloNet()
+    m = ReversiNet()
     ckpt = torch.load(path, map_location="cpu", weights_only=False)
     m.load_state_dict(ckpt["model"])
     m.eval()

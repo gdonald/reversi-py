@@ -1,7 +1,7 @@
 import os, time, random, argparse, torch
 import numpy as np
 
-from model import OthelloNet
+from model import ReversiNet
 from selfplay import play_game
 from train import Replay, train_step, save_ckpt, load_ckpt
 
@@ -63,7 +63,7 @@ def main():
     torch.manual_seed(args.seed)
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    model = OthelloNet().to(device)
+    model = ReversiNet().to(device)
     opt = torch.optim.Adam(model.parameters(), lr=args.lr)
 
     if args.resume is None:

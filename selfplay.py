@@ -1,11 +1,11 @@
 import numpy as np
 
-from env_rl import OthelloEnv
+from env_rl import ReversiEnv
 from mcts import MCTS, softmax_t
 
 
 def play_game(model, sims=200, temp_moves=10):
-    env = OthelloEnv()
+    env = ReversiEnv()
     obs, _ = env.reset()
     mcts = MCTS(model, sims=sims)
     history = []

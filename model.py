@@ -2,7 +2,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-class OthelloNet(nn.Module):
+class ReversiNet(nn.Module):
     def __init__(self, channels=64, blocks=6):
         super().__init__()
         self.stem = nn.Conv2d(3, channels, 3, padding=1)

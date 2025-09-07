@@ -1,8 +1,20 @@
 # reversi-py
 
-## Train
+## Play
 
-Using my MBP M4 (cpu)
+With no training:
+
+```
+python reversi.py
+```
+
+After lots of training:
+
+```
+python reversi.py --model checkpoints/best.pt
+```
+
+## Train
 
 ```
 python train_loop.py \
@@ -10,12 +22,4 @@ python train_loop.py \
   --train-steps 1000 \
   --batch-size 512 \
   --mcts-sims 200
-```
-
-## Play
-
-After lots of training...
-
-```
-python reversi.py --model checkpoints/best.pt
 ```

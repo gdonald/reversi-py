@@ -13,7 +13,7 @@ def encode_board(board, player_to_move):
     return x
 
 
-class OthelloEnv:
+class ReversiEnv:
     def __init__(self):
         self.g = ReversiGame(ai=None)
         self._player = BLACK

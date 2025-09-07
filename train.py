@@ -3,7 +3,7 @@ import numpy as np
 import os, tempfile, torch
 
 from torch.optim import Adam
-from model import OthelloNet
+from model import ReversiNet
 from selfplay import play_game
 
 
