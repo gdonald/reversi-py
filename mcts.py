@@ -26,11 +26,15 @@ class MCTS:
     def run(self, env, temp_moves=10, sims=None):
         sims = sims or self.sims
         root, _ = self._expand(env, node=None, add_noise=True)
+
         for _ in range(sims):
             self._simulate(copy.deepcopy(env), root)
+
         visits = np.zeros(65, dtype=np.float32)
+
         for a, ch in root.children.items():
             visits[a] = ch.N
+
         return visits
 
     def _simulate(self, env, node):

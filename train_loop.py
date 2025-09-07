@@ -16,13 +16,17 @@ def generate_selfplay(model, games, sims, temp_moves):
 @torch.no_grad()
 def policy_agreement(model, replay, n=512, device="cpu"):
     n = min(n, len(replay.buf))
+
     if n == 0:
         return None, None
+
     batch = random.sample(replay.buf, n)
+
     xs = torch.from_numpy(np.stack([b[0] for b in batch]).astype(np.float32)).to(device)
     pis = torch.from_numpy(np.stack([b[1] for b in batch]).astype(np.float32)).to(
         device
     )
+
     logits, _ = model(xs)
     probs = torch.softmax(logits, dim=-1)
 
