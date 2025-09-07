@@ -23,3 +23,7 @@ python train_loop.py \
   --batch-size 512 \
   --mcts-sims 200
 ```
+
+## Preview
+
+![Reversi](https://raw.githubusercontent.com/gdonald/reversi-py/refs/heads/main/reversi.gif)
