@@ -5,14 +5,17 @@ import time
 import termios
 import tty
 import argparse
+import torch
 
 from enum import Enum
+from model import OthelloNet  # your policy-value net
+from model_ai import ModelAi
 
 
 class Ai:
     def __init__(self):
         pass
-    
+
     def get_move(self, board, current_player):
         """
         Get a move for the AI player.
@@ -22,7 +25,7 @@ class Ai:
         if valid_moves:
             return random.choice(valid_moves)
         return None
-    
+
     def _get_valid_moves(self, board, player):
         """Get all valid moves for the given player on the given board."""
         valid_moves = []
@@ -31,19 +34,28 @@ class Ai:
                 if self._is_valid_move(board, row, col, player):
                     valid_moves.append((row, col))
         return valid_moves
-    
+
     def _is_valid_move(self, board, row, col, player):
         """Check if a move is valid for the given player."""
         if board[row][col] != Player.EMPTY:
             return False
-        
-        directions = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
+
+        directions = [
+            (-1, -1),
+            (-1, 0),
+            (-1, 1),
+            (0, -1),
+            (0, 1),
+            (1, -1),
+            (1, 0),
+            (1, 1),
+        ]
         opponent = Player.WHITE if player == Player.BLACK else Player.BLACK
-        
+
         for dr, dc in directions:
             r, c = row + dr, col + dc
             found_opponent = False
-            
+
             while 0 <= r < 8 and 0 <= c < 8:
                 if board[r][c] == opponent:
                     found_opponent = True
@@ -53,7 +65,7 @@ class Ai:
                     break
                 r += dr
                 c += dc
-        
+
         return False
 
 
@@ -444,32 +456,44 @@ class ReversiGame:
         self.current_player = Player.BLACK
         self.game_over = False
         self.initialize_board()
-        
+
         while not self.game_over:
             valid_moves = self.get_valid_moves(self.current_player)
-            
+
             if not valid_moves:
-                opponent = Player.WHITE if self.current_player == Player.BLACK else Player.BLACK
+                opponent = (
+                    Player.WHITE
+                    if self.current_player == Player.BLACK
+                    else Player.BLACK
+                )
                 opponent_moves = self.get_valid_moves(opponent)
-                
+
                 if not opponent_moves:
                     self.game_over = True
                     break
                 else:
                     self.current_player = opponent
                     continue
-            
+
             # AI makes a move
             move = self.ai.get_move(self.board, self.current_player)
             if move:
                 row, col = move
                 self.make_move(row, col, self.current_player)
-                self.current_player = Player.WHITE if self.current_player == Player.BLACK else Player.BLACK
+                self.current_player = (
+                    Player.WHITE
+                    if self.current_player == Player.BLACK
+                    else Player.BLACK
+                )
             else:
                 # Should not happen if valid_moves was not empty, but handle it
-                opponent = Player.WHITE if self.current_player == Player.BLACK else Player.BLACK
+                opponent = (
+                    Player.WHITE
+                    if self.current_player == Player.BLACK
+                    else Player.BLACK
+                )
                 self.current_player = opponent
-        
+
         return self.get_winner()
 
     def run_simulations(self, num_games):
@@ -477,56 +501,82 @@ class ReversiGame:
         black_wins = 0
         white_wins = 0
         ties = 0
-        
+
         print(f"Running {num_games} simulations...")
-        
+
         for i in range(num_games):
             if (i + 1) % max(1, num_games // 10) == 0:
                 print(f"Completed {i + 1}/{num_games} games...")
-            
+
             winner = self.simulate_game()
-            
+
             if winner == Player.BLACK:
                 black_wins += 1
             elif winner == Player.WHITE:
                 white_wins += 1
             else:
                 ties += 1
-        
+
         print(f"\nSimulation Results ({num_games} games):")
         print(f"Black wins: {black_wins} ({black_wins/num_games*100:.1f}%)")
         print(f"White wins: {white_wins} ({white_wins/num_games*100:.1f}%)")
         print(f"Ties: {ties} ({ties/num_games*100:.1f}%)")
-        
+
         return {
-            'black_wins': black_wins,
-            'white_wins': white_wins,
-            'ties': ties,
-            'total_games': num_games
+            "black_wins": black_wins,
+            "white_wins": white_wins,
+            "ties": ties,
+            "total_games": num_games,
         }
 
 
+def load_model(path):
+    m = OthelloNet()
+    checkpoint = torch.load(path, map_location="cpu")
+    m.load_state_dict(checkpoint["model"])
+    m.eval()
+    return m
+
+
 def main():
-    parser = argparse.ArgumentParser(description='Reversi - Terminal Edition')
-    parser.add_argument('--simulate', action='store_true', 
-                        help='Run in simulation mode (computer vs computer, no UI)')
-    parser.add_argument('--games', type=int, default=1000, 
-                        help='Number of games to simulate (default: 1000, only used with --simulate)')
-    
+    parser = argparse.ArgumentParser(description="Reversi - Terminal Edition")
+    parser.add_argument(
+        "--simulate",
+        action="store_true",
+        help="Run in simulation mode (computer vs computer, no UI)",
+    )
+    parser.add_argument(
+        "--games",
+        type=int,
+        default=1000,
+        help="Number of games to simulate (default: 1000, only used with --simulate)",
+    )
+    parser.add_argument(
+        "--model", type=str, help="Path to trained model checkpoint (optional)"
+    )
+
     args = parser.parse_args()
-    
-    ai = Ai()
+
+    if args.model:
+        model = load_model(args.model)
+        ai = ModelAi(model, sims=200)
+    else:
+        ai = Ai()
+
     game = ReversiGame(ai)
-    
+
+    if hasattr(ai, "game_ref"):
+        ai.game_ref = game
+
     if args.simulate:
         # Run simulation mode
         if args.games <= 0:
             print("Number of games must be positive")
             sys.exit(1)
-        
+
         game.run_simulations(args.games)
         return
-    
+
     # Normal interactive mode
     while True:
         game.start_new_game()
