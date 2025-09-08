@@ -58,7 +58,7 @@ def main():
     p.add_argument("--mcts-sims", type=int, default=200)
     p.add_argument("--temp-moves", type=int, default=10)
     p.add_argument("--iters", type=int, default=1000)
-    p.add_argument("--lr", type=float, default=1e-3)
+    p.add_argument("--lr", type=float, default=1e-4)
     p.add_argument("--seed", type=int, default=42)
     args = p.parse_args()
 
@@ -69,6 +69,7 @@ def main():
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model = ReversiNet().to(device)
     opt = torch.optim.Adam(model.parameters(), lr=args.lr)
+    scheduler = torch.optim.lr_scheduler.StepLR(opt, step_size=50, gamma=0.8)
 
     if args.resume is None:
         cand = os.path.join(args.outdir, "latest.pt")
@@ -125,8 +126,10 @@ def main():
         save_ckpt(best_path, model, opt, replay, stats=stats)
 
         print(
-            f"iter {it}  selfplay {len(data)} pos  replay {len(replay.buf)}  loss {avg_loss:.4f}  time {dt:.1f}s"
+            f"iter {it}  selfplay {len(data)} pos  replay {len(replay.buf)}  loss {avg_loss:.4f}  lr {opt.param_groups[0]['lr']:.2e}  time {dt:.1f}s"
         )
+        
+        scheduler.step()
 
 
 if __name__ == "__main__":

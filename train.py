@@ -34,9 +34,9 @@ def train_step(model, opt, batch, device="cpu"):
     )
 
     p_logits, v = model(xs)
-    ce = F.cross_entropy(p_logits, pis.argmax(dim=1))
+    ce = -(pis * F.log_softmax(p_logits, dim=1)).sum(dim=1).mean()
     mse = F.mse_loss(v.squeeze(1), zs)
-    l2 = 1e-4 * sum((p.pow(2).sum() for p in model.parameters()))
+    l2 = 1e-5 * sum((p.pow(2).sum() for p in model.parameters()))
     loss = ce + mse + l2
 
     opt.zero_grad()
