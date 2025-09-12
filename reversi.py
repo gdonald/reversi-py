@@ -547,12 +547,18 @@ def main():
     parser.add_argument(
         "--model", type=str, help="Path to trained model checkpoint (optional)"
     )
+    parser.add_argument(
+        "--sims",
+        type=int,
+        default=200,
+        help="MCTS simulations for ModelAi (default: 200)",
+    )
 
     args = parser.parse_args()
 
     if args.model:
         model = load_model(args.model)
-        ai = ModelAi(model, sims=200)
+        ai = ModelAi(model, sims=args.sims)
     else:
         ai = Ai()
 
