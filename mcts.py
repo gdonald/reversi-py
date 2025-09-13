@@ -38,17 +38,22 @@ class MCTS:
         return visits
 
     def _simulate(self, env, node):
-        if not node.children:
-            _, v = self._expand(env, node=node, add_noise=False)
-            return -v
+        path = [(None, node)]
 
-        a, ch = self._select(node)
-        env.step(a)
-        v = self._simulate(env, ch)
+        while path[-1][1].children:
+            a, ch = self._select(path[-1][1])
+            env.step(a)
+            path.append((a, ch))
 
-        ch.N += 1
-        ch.W += v
-        ch.Q = ch.W / ch.N
+        _, v = self._expand(env, node=path[-1][1], add_noise=False)
+
+        val = -v
+        for _, n in reversed(path[1:]):
+            n.N += 1
+            n.W += val
+            n.Q = n.W / max(1, n.N)
+            val = -val
+
         return -v
 
     def _select(self, node):
