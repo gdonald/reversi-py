@@ -3,17 +3,25 @@ import torch.nn.functional as F
 
 
 class ReversiNet(nn.Module):
-    def __init__(self, channels=64, blocks=6):
+    def __init__(self, channels=128, blocks=12):
         super().__init__()
         self.stem = nn.Conv2d(3, channels, 3, padding=1)
         self.blocks = nn.ModuleList([Res(channels) for _ in range(blocks)])
         self.pol = nn.Sequential(
-            nn.Conv2d(channels, 2, 1), nn.Flatten(), nn.Linear(2 * 8 * 8, 65)
+            nn.Conv2d(channels, 8, 1),
+            nn.ReLU(),
+            nn.Conv2d(8, 2, 1),
+            nn.Flatten(),
+            nn.Linear(2 * 8 * 8, 65)
         )
         self.val = nn.Sequential(
-            nn.Conv2d(channels, 1, 1),
+            nn.Conv2d(channels, 4, 1),
+            nn.ReLU(),
+            nn.Conv2d(4, 1, 1),
             nn.Flatten(),
-            nn.Linear(8 * 8, 64),
+            nn.Linear(8 * 8, 128),
+            nn.ReLU(),
+            nn.Linear(128, 64),
             nn.ReLU(),
             nn.Linear(64, 1),
             nn.Tanh(),

@@ -17,7 +17,7 @@ def softmax_t(x, T):
 
 
 class MCTS:
-    def __init__(self, model, sims=200, cpuct=1.5, device="cpu"):
+    def __init__(self, model, sims=400, cpuct=2.0, device="cpu"):
         self.f = model.eval()
         self.sims = sims
         self.cpuct = cpuct
@@ -85,7 +85,7 @@ class MCTS:
 
         if add_noise:
             idx = np.where(legal > 0)[0]
-            noise = np.random.dirichlet([0.3] * len(idx))
+            noise = np.random.dirichlet([0.25] * len(idx))
             p[idx] = 0.75 * p[idx] + 0.25 * noise
 
         if node is None:
