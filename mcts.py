@@ -21,11 +21,11 @@ class MCTS:
         self.f = model.eval()
         self.sims = sims
         self.cpuct = cpuct
-        self.device = device
+        self.device = torch.device(device) if isinstance(device, str) else device
 
-    def run(self, env, temp_moves=10, sims=None):
+    def run(self, env, temp_moves=10, sims=None, add_noise=True):
         sims = sims or self.sims
-        root, _ = self._expand(env, node=None, add_noise=True)
+        root, _ = self._expand(env, node=None, add_noise=add_noise)
 
         for _ in range(sims):
             self._simulate(copy.deepcopy(env), root)
@@ -97,5 +97,7 @@ class MCTS:
             for a in np.where(legal > 0)[0]:
                 node.children[a] = Node(prior=p[a], legal=None)
 
-        node.N = node.N
+            if node.N == 0:
+                node.N = 1
+
         return node, float(v.item())

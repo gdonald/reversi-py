@@ -19,7 +19,15 @@ def encode_board(board, current_player):
     b = (m == BLACK).astype(np.float32)
     w = (m == WHITE).astype(np.float32)
     side = np.full_like(b, 1.0 if current_player.name == "BLACK" else 0.0)
-    return np.stack([b, w, side], axis=0)
+
+    corners = np.zeros((8, 8), dtype=np.float32)
+    corners[0, 0] = corners[0, 7] = corners[7, 0] = corners[7, 7] = 1.0
+
+    edges = np.zeros((8, 8), dtype=np.float32)
+    edges[0, :] = edges[7, :] = edges[:, 0] = edges[:, 7] = 1.0
+    edges[0, 0] = edges[0, 7] = edges[7, 0] = edges[7, 7] = 0.0
+
+    return np.stack([b, w, side, corners, edges], axis=0)
 
 
 def legal_mask_from(board, current_player):
@@ -77,10 +85,12 @@ def _apply_move(board, r, c, current_player):
 
 
 class ModelAi:
-    def __init__(self, model, sims=0, device="cpu"):
+    def __init__(self, model, sims=0, device="cpu", temperature=0.1, add_noise=True):
         self.model = model.eval().to(device)
         self.device = device
         self.sims = sims
+        self.temperature = temperature
+        self.add_noise = add_noise
 
         self.use_mcts = sims and sims > 0
         if self.use_mcts:
@@ -139,8 +149,22 @@ class ModelAi:
         env = SimpleNamespace(
             obs=obs, legal_mask=legal_mask, step=step, terminal=terminal
         )
-        visits = self.mcts.run(env, temp_moves=0)
-        a = int(visits.argmax())
+
+        visits = self.mcts.run(env, temp_moves=0, add_noise=self.add_noise)
+
+        if self.temperature > 0:
+            from mcts import softmax_t
+
+            probs = softmax_t(np.log(visits + 1e-10), self.temperature)
+
+            if self.temperature > 0.5:
+                a = int(np.random.choice(65, p=probs))
+            else:
+                a = int(np.argmax(probs))
+        else:
+            a = int(visits.argmax())
+
         if a == 64:
             return None
+
         return divmod(a, 8)

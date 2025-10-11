@@ -8,7 +8,7 @@ from selfplay import play_game
 
 
 class Replay:
-    def __init__(self, cap=500_000):
+    def __init__(self, cap=200_000):
         self.buf, self.cap = [], cap
 
     def add_many(self, items):
@@ -36,7 +36,8 @@ def train_step(model, opt, batch, device="cpu"):
     p_logits, v = model(xs)
     ce = -(pis * F.log_softmax(p_logits, dim=1)).sum(dim=1).mean()
     mse = F.mse_loss(v.squeeze(1), zs)
-    l2 = 5e-6 * sum((p.pow(2).sum() for p in model.parameters()))
+    # Reduced L2 from 1e-5 to 1e-6 since we now use weight_decay in optimizer
+    l2 = 1e-6 * sum((p.pow(2).sum() for p in model.parameters()))
     loss = ce + mse + l2
 
     opt.zero_grad()

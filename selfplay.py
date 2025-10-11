@@ -4,10 +4,10 @@ from env_rl import ReversiEnv
 from mcts import MCTS, softmax_t
 
 
-def play_game(model, sims=200, temp_moves=10):
+def play_game(model, sims=200, temp_moves=10, device="cpu"):
     env = ReversiEnv()
     obs, _ = env.reset()
-    mcts = MCTS(model, sims=sims)
+    mcts = MCTS(model, sims=sims, device=device)
     history = []
     t = 0
 

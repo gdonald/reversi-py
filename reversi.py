@@ -10,6 +10,7 @@ import torch
 from enum import Enum
 from model import ReversiNet
 from model_ai import ModelAi
+from device_utils import get_device, print_device_info
 
 
 class Ai:
@@ -550,15 +551,51 @@ def main():
     parser.add_argument(
         "--sims",
         type=int,
-        default=200,
-        help="MCTS simulations for ModelAi (default: 200)",
+        default=400,
+        help="MCTS simulations for ModelAi (default: 400, increased for stronger play)",
+    )
+    parser.add_argument(
+        "--temperature",
+        type=float,
+        default=0.1,
+        help="Temperature for move selection (default: 0.1, lower = more deterministic)",
+    )
+    parser.add_argument(
+        "--no-noise",
+        action="store_true",
+        help="Disable Dirichlet noise at MCTS root (makes AI more deterministic)",
+    )
+    parser.add_argument(
+        "--device",
+        type=str,
+        default=None,
+        choices=["auto", "mps", "cuda", "cpu"],
+        help="Device to use (auto=auto-detect, mps=Apple Silicon, cuda=NVIDIA GPU, cpu=CPU)",
+    )
+    parser.add_argument(
+        "--device-info",
+        action="store_true",
+        help="Print detailed device information and exit",
     )
 
     args = parser.parse_args()
 
+    if args.device_info:
+        print_device_info()
+        return
+
+    device_str = args.device if args.device and args.device != "auto" else None
+    device = get_device(preferred_device=device_str, verbose=True)
+
     if args.model:
         model = load_model(args.model)
-        ai = ModelAi(model, sims=args.sims)
+        ai = ModelAi(
+            model,
+            sims=args.sims,
+            temperature=args.temperature,
+            add_noise=not args.no_noise,
+            device=str(device),
+        )
     else:
         ai = Ai()
 

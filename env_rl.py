@@ -9,7 +9,17 @@ def encode_board(board, player_to_move):
     b = (board == BLACK).astype(np.float32)
     w = (board == WHITE).astype(np.float32)
     side = np.full_like(b, 1.0 if player_to_move == BLACK else 0.0)
-    x = np.stack([b, w, side], axis=0)
+
+    corners = np.zeros((8, 8), dtype=np.float32)
+    corners[0, 0] = corners[0, 7] = corners[7, 0] = corners[7, 7] = 1.0
+
+    edges = np.zeros((8, 8), dtype=np.float32)
+    edges[0, :] = edges[7, :] = edges[:, 0] = edges[:, 7] = 1.0
+    edges[0, 0] = edges[0, 7] = edges[7, 0] = edges[7, 7] = (
+        0.0  # Don't double-count corners
+    )
+
+    x = np.stack([b, w, side, corners, edges], axis=0)
     return x
 
 
@@ -55,9 +65,18 @@ class ReversiEnv:
 
     def outcome(self):
         w = self.g.get_winner()
+        black_count, white_count = self.g.count_pieces()
+        total_pieces = black_count + white_count
+
         if w is None:
-            return 0
-        return 1 if w == Player.BLACK else -1
+            return 0.0
+
+        margin = abs(black_count - white_count) / max(total_pieces, 1)
+
+        base_reward = 1.0 if w == Player.BLACK else -1.0
+        margin_bonus = 0.3 * margin
+
+        return base_reward * (0.7 + margin_bonus)
 
     def step(self, a):
         if a != 64:
