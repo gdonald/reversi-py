@@ -42,8 +42,9 @@ checkpoints = checkpoints/sb3
 logdir = logs/sb3
 ```
 
-Overrides (examples):
-- Continue from checkpoint: `--load-model checkpoints/sb3/best_model.zip`
+ Overrides (examples):
+- Auto-resume is on by default (uses `best_model.zip` > `final_model.zip` > newest step checkpoint)
+- Continue from a specific checkpoint: `--load-model checkpoints/sb3/best_model.zip`
 - Change sparring mix: `--bot-mix-prob 0.5`
 - Force single-process vec env (if SubprocVecEnv blocked): `--no-subproc`
 - Adjust device: `--device mps|cuda|cpu|auto` (default is `cpu`)

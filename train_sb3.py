@@ -2,7 +2,8 @@ import argparse
 import os
 import json
 import csv
-from typing import Optional
+import re
+from typing import Optional, Tuple
 
 from sb3_contrib import MaskablePPO
 from stable_baselines3.common.callbacks import BaseCallback, CheckpointCallback
@@ -30,6 +31,7 @@ DEFAULT_BATCH_SIZE = 1024
 DEFAULT_ENT_COEF = 0.005
 DEFAULT_CLIP_RANGE = 0.2
 DEFAULT_N_EPOCHS = 4
+TB_LOG_NAME = "ppo_reversi"
 
 
 class EvalVsBotCallback(BaseCallback):
@@ -125,6 +127,33 @@ class EvalVsBotCallback(BaseCallback):
         return True
 
 
+def find_latest_checkpoint(ckpt_dir: str) -> Optional[str]:
+    """Pick the most recent checkpoint with a bias toward best/final, otherwise highest step count."""
+    if not os.path.isdir(ckpt_dir):
+        return None
+
+    best: Tuple[int, int, float, str] | None = None  # (priority, steps, mtime, path)
+    for fname in os.listdir(ckpt_dir):
+        if not fname.endswith(".zip"):
+            continue
+        path = os.path.join(ckpt_dir, fname)
+        priority = 1
+        steps = 0
+        if fname == "best_model.zip":
+            priority = 3
+        elif fname == "final_model.zip":
+            priority = 2
+        else:
+            m = re.search(r"_(\d+)_steps\\.zip$", fname)
+            if m:
+                steps = int(m.group(1))
+        stat = os.stat(path)
+        key = (priority, steps, stat.st_mtime, path)
+        if best is None or key > best:
+            best = key
+    return best[3] if best else None
+
+
 def parse_args():
     p = argparse.ArgumentParser(description="Train MaskablePPO on Reversi")
     p.add_argument("--total-timesteps", type=int, default=DEFAULT_TOTAL_TIMESTEPS)
@@ -187,6 +216,14 @@ def main():
     with open(os.path.join(args.logdir, "training_config.json"), "w") as f:
         json.dump(vars(args), f, indent=2)
 
+    load_path = args.load_model
+    if not load_path:
+        load_path = find_latest_checkpoint(args.checkpoints)
+        if load_path:
+            print(f"Auto-resuming from checkpoint: {load_path}")
+        else:
+            print(f"No checkpoint found in {args.checkpoints}; starting fresh.")
+
     env = make_vec_env(
         n_envs=args.n_envs,
         seed=args.seed,
@@ -195,9 +232,9 @@ def main():
         use_subproc=not args.no_subproc,
     )
 
-    if args.load_model:
+    if load_path:
         model = MaskablePPO.load(
-            args.load_model,
+            load_path,
             env=env,
             device=args.device,
             tensorboard_log=args.logdir,
@@ -219,7 +256,10 @@ def main():
             ent_coef=args.ent_coef,
             clip_range=args.clip_range,
             n_epochs=args.n_epochs,
+            tensorboard_log=args.logdir,
         )
+        model_name = TB_LOG_NAME
+        reset_steps = True
 
     ckpt_cb = CheckpointCallback(
         save_freq=args.save_freq,
@@ -237,7 +277,16 @@ def main():
         verbose=1,
     )
 
-    model.learn(total_timesteps=args.total_timesteps, callback=[ckpt_cb, eval_cb])
+    if load_path:
+        model_name = TB_LOG_NAME
+        reset_steps = False
+
+    model.learn(
+        total_timesteps=args.total_timesteps,
+        callback=[ckpt_cb, eval_cb],
+        tb_log_name=model_name,
+        reset_num_timesteps=reset_steps,
+    )
 
     final_path = os.path.join(args.checkpoints, "final_model.zip")
     model.save(final_path)
