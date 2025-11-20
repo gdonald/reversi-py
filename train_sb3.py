@@ -25,12 +25,13 @@ DEFAULT_BOT_MIX_PROB = 0.8
 DEFAULT_BOT_MIX_OPP = "heuristic"
 DEFAULT_GAMMA = 0.99
 DEFAULT_GAE_LAMBDA = 0.95
-DEFAULT_LR = 1e-4
+DEFAULT_LR = 5e-5
 DEFAULT_N_STEPS = 2048
 DEFAULT_BATCH_SIZE = 1024
-DEFAULT_ENT_COEF = 0.005
-DEFAULT_CLIP_RANGE = 0.2
+DEFAULT_ENT_COEF = 0.003
+DEFAULT_CLIP_RANGE = 0.15
 DEFAULT_N_EPOCHS = 4
+DEFAULT_TARGET_KL = 0.01
 TB_LOG_NAME = "ppo_reversi"
 
 
@@ -194,6 +195,12 @@ def parse_args():
     p.add_argument("--clip-range", type=float, default=DEFAULT_CLIP_RANGE)
     p.add_argument("--n-epochs", type=int, default=DEFAULT_N_EPOCHS, help="PPO epochs per update")
     p.add_argument(
+        "--target-kl",
+        type=float,
+        default=DEFAULT_TARGET_KL,
+        help="Target KL for early stopping PPO updates (lower values dampen unstable updates)",
+    )
+    p.add_argument(
         "--device",
         type=str,
         default="cpu",
@@ -256,6 +263,7 @@ def main():
             ent_coef=args.ent_coef,
             clip_range=args.clip_range,
             n_epochs=args.n_epochs,
+            target_kl=args.target_kl,
         )
         model_name = TB_LOG_NAME
         reset_steps = True
