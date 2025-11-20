@@ -315,25 +315,28 @@ class ReversiGame:
                 and self.current_player != self.human_player
             ):
                 move = self.ai.get_move(self.board, self.current_player)
-                if move:
-                    row, col = move
+                row_col = None
+                if move and self.is_valid_move(move[0], move[1], self.current_player):
+                    row_col = move
+                elif valid_moves:
+                    # Fallback to first legal move to avoid bogus skips when the AI outputs pass/invalid.
+                    row_col = valid_moves[0]
+
+                if row_col:
+                    row, col = row_col
                     self.make_move(row, col, self.current_player)
-                    self.current_player = (
-                        Player.WHITE
-                        if self.current_player == Player.BLACK
-                        else Player.BLACK
-                    )
-                    time.sleep(0.25)
                 else:
                     print(
-                        f"\nComputer ({('BLACK' if self.current_player == Player.BLACK else 'WHITE')}) has no valid moves. Skipping turn."
-                    )
-                    self.current_player = (
-                        Player.WHITE
-                        if self.current_player == Player.BLACK
-                        else Player.BLACK
+                        f"\nComputer ({('BLACK' if self.current_player == Player.BLACK else 'WHITE')}) failed to produce a legal move. Skipping turn."
                     )
                     time.sleep(1)
+
+                self.current_player = (
+                    Player.WHITE
+                    if self.current_player == Player.BLACK
+                    else Player.BLACK
+                )
+                time.sleep(0.25)
             else:
                 if self.handle_player_input():
                     self.current_player = (
@@ -520,21 +523,21 @@ class ReversiGame:
                     continue
 
             move = self.ai.get_move(self.board, self.current_player)
-            if move:
-                row, col = move
+            row_col = None
+            if move and self.is_valid_move(move[0], move[1], self.current_player):
+                row_col = move
+            elif valid_moves:
+                row_col = valid_moves[0]
+
+            if row_col:
+                row, col = row_col
                 self.make_move(row, col, self.current_player)
-                self.current_player = (
-                    Player.WHITE
-                    if self.current_player == Player.BLACK
-                    else Player.BLACK
-                )
-            else:
-                opponent = (
-                    Player.WHITE
-                    if self.current_player == Player.BLACK
-                    else Player.BLACK
-                )
-                self.current_player = opponent
+
+            self.current_player = (
+                Player.WHITE
+                if self.current_player == Player.BLACK
+                else Player.BLACK
+            )
 
         return self.get_winner()
 
