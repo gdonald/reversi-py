@@ -9,8 +9,11 @@ import torch
 
 from enum import Enum
 from model import ReversiNet
+import numpy as np
+
 from model_ai import ModelAi
 from device_utils import get_device, print_device_info
+from sb3_contrib import MaskablePPO
 
 
 class Ai:
@@ -73,6 +76,42 @@ class Player(Enum):
 class PlayerCount(Enum):
     ZERO = 0
     ONE = 1
+
+
+class SB3MaskableAi(Ai):
+    def __init__(self, model_path: str, device: str = "auto"):
+        super().__init__()
+        # Deferred import to avoid circular dependency at module import time.
+        from env_reversi import ReversiEnv
+
+        self.env = ReversiEnv()
+        self.model = MaskablePPO.load(model_path, device=device)
+
+    def get_move(self, board, current_player):
+        # sync env with current game state (defensive copy to avoid aliasing)
+        self.env.game.board = [[cell for cell in row] for row in board]
+        self.env.game.current_player = current_player
+        self.env.game.game_over = False
+        self.env.current_player = current_player
+        self.env.pass_count = 0
+        obs = self.env._encode_board()
+        mask = self.env._legal_mask()
+        if mask.sum() == 0:
+            fallback_moves = self.env.game.get_valid_moves(current_player)
+            if fallback_moves:
+                return fallback_moves[0]
+            return None
+        action, _ = self.model.predict(obs, action_masks=mask, deterministic=True)
+        action = int(action)
+        pass_idx = self.env.board_size * self.env.board_size
+        if action == pass_idx:
+            legal_moves = np.where(mask[:-1] == 1.0)[0]
+            if legal_moves.size > 0:
+                action = int(legal_moves[0])  # fall back to first legal move
+            else:
+                return None
+        r, c = divmod(action, self.env.board_size)
+        return (r, c)
 
 
 class ReversiGame:
@@ -413,6 +452,14 @@ class ReversiGame:
             print(f"Winner: {'BLACK' if winner == Player.BLACK else 'WHITE'}!")
 
     def start_new_game(self):
+        # Reset board/state for a fresh game
+        self.board = [[Player.EMPTY for _ in range(8)] for _ in range(8)]
+        self.initialize_board()
+        self.current_player = Player.BLACK
+        self.cursor_x = 3
+        self.cursor_y = 2
+        self.game_over = False
+
         self.clear_screen()
 
         while True:
@@ -549,6 +596,11 @@ def main():
         "--model", type=str, help="Path to trained model checkpoint (optional)"
     )
     parser.add_argument(
+        "--sb3-model",
+        type=str,
+        help="Path to MaskablePPO .zip checkpoint (uses new RL agent)",
+    )
+    parser.add_argument(
         "--device",
         type=str,
         default=None,
@@ -570,7 +622,13 @@ def main():
     device_str = args.device if args.device and args.device != "auto" else None
     device = get_device(preferred_device=device_str, verbose=True)
 
-    if args.model:
+    if args.model and args.sb3_model:
+        print("Specify only one of --model or --sb3-model")
+        sys.exit(1)
+
+    if args.sb3_model:
+        ai = SB3MaskableAi(args.sb3_model, device=str(device))
+    elif args.model:
         model = load_model(args.model)
         ai = ModelAi(model, device=str(device))
     else:

@@ -59,7 +59,7 @@ def play_game(agent: MaskablePPO, bot, agent_as: Player, capture_render: bool = 
 
 
 def eval_vs_bot(model: MaskablePPO, bot, games: int) -> dict:
-    results = {"agent_black": 0, "agent_white": 0, "ties": 0}
+    results = {"agent_black": 0, "agent_white": 0, "ties": 0, "losses": 0}
     for i in range(games):
         agent_as = Player.BLACK if i % 2 == 0 else Player.WHITE
         winner, _ = play_game(model, bot, agent_as, capture_render=False)
@@ -70,6 +70,8 @@ def eval_vs_bot(model: MaskablePPO, bot, games: int) -> dict:
                 results["agent_white"] += 1
         elif winner is None:
             results["ties"] += 1
+        else:
+            results["losses"] += 1
     return results
 
 

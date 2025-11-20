@@ -56,6 +56,10 @@ class ReversiEnv(gym.Env):
             mask[-1] = 1.0  # pass
         return mask
 
+    def action_masks(self) -> np.ndarray:
+        """MaskablePPO hook: 1.0 for legal actions, 0.0 otherwise."""
+        return self._legal_mask()
+
     def _margin_reward(self, winner: Player) -> float:
         black_count, white_count = self.game.count_pieces()
         total = max(1, black_count + white_count)

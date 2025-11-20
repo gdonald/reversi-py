@@ -1,6 +1,7 @@
 import argparse
 import os
 import json
+import csv
 from typing import Optional
 
 from sb3_contrib import MaskablePPO
@@ -10,6 +11,25 @@ from bots import RandomBot, CornerAwareMobilityBot
 from sb3_env_factory import make_vec_env
 from env_reversi import ReversiEnv
 from reversi import Player, ReversiGame
+
+# Default training hyperparameters (easy to tweak in one place)
+DEFAULT_TOTAL_TIMESTEPS = 10_000_000
+DEFAULT_N_ENVS = 8
+DEFAULT_LOGDIR = "logs/sb3"
+DEFAULT_CHECKPOINT_DIR = "checkpoints/sb3"
+DEFAULT_SAVE_FREQ = 50_000
+DEFAULT_EVAL_FREQ = 20_000
+DEFAULT_EVAL_GAMES = 50
+DEFAULT_BOT_MIX_PROB = 0.8
+DEFAULT_BOT_MIX_OPP = "heuristic"
+DEFAULT_GAMMA = 0.99
+DEFAULT_GAE_LAMBDA = 0.95
+DEFAULT_LR = 1e-4
+DEFAULT_N_STEPS = 2048
+DEFAULT_BATCH_SIZE = 1024
+DEFAULT_ENT_COEF = 0.005
+DEFAULT_CLIP_RANGE = 0.2
+DEFAULT_N_EPOCHS = 4
 
 
 class EvalVsBotCallback(BaseCallback):
@@ -23,6 +43,7 @@ class EvalVsBotCallback(BaseCallback):
         games: int,
         opponent: str,
         best_path: str,
+        log_path: str,
         verbose: int = 0,
     ):
         super().__init__(verbose)
@@ -31,6 +52,7 @@ class EvalVsBotCallback(BaseCallback):
         self.opponent_name = opponent
         self.best_path = best_path
         self.best_winrate: float = -1.0
+        self.log_path = log_path
 
         if opponent == "random":
             self.bot = RandomBot()
@@ -86,6 +108,14 @@ class EvalVsBotCallback(BaseCallback):
         winrate = self._evaluate()
         if self.verbose:
             print(f"[Eval] games={self.games} vs {self.opponent_name} winrate={winrate:.2%}")
+        # append to CSV log
+        os.makedirs(os.path.dirname(self.log_path), exist_ok=True)
+        write_header = not os.path.exists(self.log_path)
+        with open(self.log_path, "a", newline="") as f:
+            writer = csv.writer(f)
+            if write_header:
+                writer.writerow(["timesteps", "winrate", "opponent", "games"])
+            writer.writerow([self.num_timesteps, winrate, self.opponent_name, self.games])
         if winrate > self.best_winrate:
             self.best_winrate = winrate
             os.makedirs(os.path.dirname(self.best_path), exist_ok=True)
@@ -97,13 +127,26 @@ class EvalVsBotCallback(BaseCallback):
 
 def parse_args():
     p = argparse.ArgumentParser(description="Train MaskablePPO on Reversi")
-    p.add_argument("--total-timesteps", type=int, default=250_000)
-    p.add_argument("--n-envs", type=int, default=8)
-    p.add_argument("--logdir", type=str, default="logs/sb3")
-    p.add_argument("--checkpoints", type=str, default="checkpoints/sb3")
-    p.add_argument("--save-freq", type=int, default=50_000, help="Timesteps between checkpoints")
-    p.add_argument("--eval-freq", type=int, default=50_000, help="Timesteps between eval runs")
-    p.add_argument("--eval-games", type=int, default=10, help="Games per eval window")
+    p.add_argument("--total-timesteps", type=int, default=DEFAULT_TOTAL_TIMESTEPS)
+    p.add_argument("--n-envs", type=int, default=DEFAULT_N_ENVS)
+    p.add_argument("--logdir", type=str, default=DEFAULT_LOGDIR)
+    p.add_argument("--checkpoints", type=str, default=DEFAULT_CHECKPOINT_DIR)
+    p.add_argument("--save-freq", type=int, default=DEFAULT_SAVE_FREQ, help="Timesteps between checkpoints")
+    p.add_argument("--eval-freq", type=int, default=DEFAULT_EVAL_FREQ, help="Timesteps between eval runs")
+    p.add_argument("--eval-games", type=int, default=DEFAULT_EVAL_GAMES, help="Games per eval window")
+    p.add_argument(
+        "--bot-mix-prob",
+        type=float,
+        default=DEFAULT_BOT_MIX_PROB,
+        help="Probability an env episode pits the agent against a fixed heuristic opponent instead of pure self-play",
+    )
+    p.add_argument(
+        "--bot-mix-opponent",
+        type=str,
+        default=DEFAULT_BOT_MIX_OPP,
+        choices=["heuristic"],
+        help="Opponent used when bot-mix is enabled",
+    )
     p.add_argument(
         "--eval-opponent",
         type=str,
@@ -112,19 +155,25 @@ def parse_args():
         help="Opponent used for periodic eval",
     )
     p.add_argument("--seed", type=int, default=42)
-    p.add_argument("--gamma", type=float, default=0.99)
-    p.add_argument("--gae-lambda", type=float, default=0.95)
-    p.add_argument("--learning-rate", type=float, default=3e-4)
-    p.add_argument("--n-steps", type=int, default=1024, help="Rollout length per env before update")
-    p.add_argument("--batch-size", type=int, default=2048, help="Minibatch size for PPO updates")
-    p.add_argument("--ent-coef", type=float, default=0.01)
-    p.add_argument("--clip-range", type=float, default=0.2)
-    p.add_argument("--n-epochs", type=int, default=4, help="PPO epochs per update")
+    p.add_argument("--load-model", type=str, default=None, help="Path to an existing MaskablePPO .zip to resume training")
+    p.add_argument("--gamma", type=float, default=DEFAULT_GAMMA)
+    p.add_argument("--gae-lambda", type=float, default=DEFAULT_GAE_LAMBDA)
+    p.add_argument("--learning-rate", type=float, default=DEFAULT_LR)
+    p.add_argument("--n-steps", type=int, default=DEFAULT_N_STEPS, help="Rollout length per env before update")
+    p.add_argument("--batch-size", type=int, default=DEFAULT_BATCH_SIZE, help="Minibatch size for PPO updates")
+    p.add_argument("--ent-coef", type=float, default=DEFAULT_ENT_COEF)
+    p.add_argument("--clip-range", type=float, default=DEFAULT_CLIP_RANGE)
+    p.add_argument("--n-epochs", type=int, default=DEFAULT_N_EPOCHS, help="PPO epochs per update")
     p.add_argument(
         "--device",
         type=str,
-        default="auto",
+        default="cpu",
         help="Device for training (e.g., 'cpu', 'cuda', 'mps', or 'auto')",
+    )
+    p.add_argument(
+        "--no-subproc",
+        action="store_true",
+        help="Disable SubprocVecEnv and use in-process DummyVecEnv (single core)",
     )
     return p.parse_args()
 
@@ -138,24 +187,39 @@ def main():
     with open(os.path.join(args.logdir, "training_config.json"), "w") as f:
         json.dump(vars(args), f, indent=2)
 
-    env = make_vec_env(n_envs=args.n_envs, seed=args.seed)
-
-    model = MaskablePPO(
-        "MlpPolicy",
-        env,
-        verbose=1,
-        tensorboard_log=args.logdir,
+    env = make_vec_env(
+        n_envs=args.n_envs,
         seed=args.seed,
-        device=args.device,
-        gamma=args.gamma,
-        gae_lambda=args.gae_lambda,
-        learning_rate=args.learning_rate,
-        n_steps=args.n_steps,
-        batch_size=args.batch_size,
-        ent_coef=args.ent_coef,
-        clip_range=args.clip_range,
-        n_epochs=args.n_epochs,
+        bot_mix_prob=args.bot_mix_prob,
+        bot_name=args.bot_mix_opponent,
+        use_subproc=not args.no_subproc,
     )
+
+    if args.load_model:
+        model = MaskablePPO.load(
+            args.load_model,
+            env=env,
+            device=args.device,
+            tensorboard_log=args.logdir,
+        )
+        model.set_random_seed(args.seed)
+    else:
+        model = MaskablePPO(
+            "MlpPolicy",
+            env,
+            verbose=1,
+            tensorboard_log=args.logdir,
+            seed=args.seed,
+            device=args.device,
+            gamma=args.gamma,
+            gae_lambda=args.gae_lambda,
+            learning_rate=args.learning_rate,
+            n_steps=args.n_steps,
+            batch_size=args.batch_size,
+            ent_coef=args.ent_coef,
+            clip_range=args.clip_range,
+            n_epochs=args.n_epochs,
+        )
 
     ckpt_cb = CheckpointCallback(
         save_freq=args.save_freq,
@@ -169,6 +233,7 @@ def main():
         games=args.eval_games,
         opponent=args.eval_opponent,
         best_path=os.path.join(args.checkpoints, "best_model.zip"),
+        log_path=os.path.join(args.logdir, "eval_history.csv"),
         verbose=1,
     )
 

@@ -1,8 +1,8 @@
 # reversi-py
 
-Self-contained Reversi environment plus Stable Baselines3 training harness with action masking.
+Self-contained Reversi environment plus Stable Baselines3 (MaskablePPO) training harness with action masking and heuristic sparring.
 
-## Installation
+## Install
 
 ```
 python -m venv .venv
@@ -10,46 +10,49 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Dependencies are pinned; Python 3.10+ recommended. MPS/CUDA selection is handled by SB3 (`--device auto`).
+Python 3.10+ recommended. Default device is CPU; override with `--device mps|cuda|auto` if you want GPU. MPS is often slower than CPU for this setup.
 
-## Quickstart
+## Scripts
 
-Play the console game:
+- Play the classic console game (no RL): `python reversi.py`
+- Play the console game vs the SB3 agent: `python reversi.py --sb3-model checkpoints/sb3/best_model.zip` (add `--device cpu|mps|cuda` to force)
+- Train agent (defaults below): `python train_sb3.py`
+- Evaluate a checkpoint vs bots (get winrate): `python eval_agent_sb3.py --model checkpoints/sb3/best_model.zip --games 50 --opponents heuristic random`
+- Head-to-head in a simple prompt (coords like `d3`/`pass`): `python play_vs_agent.py --model checkpoints/sb3/best_model.zip`
+- Plot eval winrate history from training logs (uses `logs/sb3/eval_history.csv`): `python plot_eval.py --logdir logs/sb3`
+- Baseline bots vs each other: `python eval_bots.py --games 50`
 
-```
-python reversi.py
-```
-
-Train a MaskablePPO agent (8 environments, checkpoints + TensorBoard logs):
-
-```
-python train_sb3.py --total-timesteps 500000 --n-envs 8 --checkpoints checkpoints/sb3 --logdir logs/sb3
-```
-
-Monitor training curves:
+## Training defaults (tweak in `train_sb3.py`)
 
 ```
-tensorboard --logdir logs/sb3
+total_timesteps = 10_000_000
+n_envs = 8
+bot_mix_prob = 0.8        # fraction of episodes vs heuristic opponent
+eval_freq = 20_000        # timesteps between evals
+eval_games = 50
+learning_rate = 1e-4
+ent_coef = 0.005
+n_steps = 2048
+batch_size = 1024
+gamma = 0.99
+gae_lambda = 0.95
+clip_range = 0.2
+n_epochs = 4
+checkpoints = checkpoints/sb3
+logdir = logs/sb3
 ```
 
-Evaluate a trained agent vs heuristic or random bots:
+Overrides (examples):
+- Continue from checkpoint: `--load-model checkpoints/sb3/best_model.zip`
+- Change sparring mix: `--bot-mix-prob 0.5`
+- Force single-process vec env (if SubprocVecEnv blocked): `--no-subproc`
+- Adjust device: `--device mps|cuda|cpu|auto` (default is `cpu`)
 
-```
-python eval_agent_sb3.py --model checkpoints/sb3/final_model.zip --games 50 --opponents heuristic random
-python eval_agent_sb3.py --model checkpoints/sb3/best_model.zip --games 10 --render-games 1
-```
-
-Run heuristic vs random baseline:
-
-```
-python eval_bots.py --games 50
-```
-
-## Notes
-
-- Action masking prevents illegal moves; pass action is explicit and two passes end a game.
-- Training config is saved to `logs/sb3/training_config.json` for reproducibility.
-- Checkpoints are written every `--save-freq`; best model (by periodic eval) is saved to `checkpoints/sb3/best_model.zip`.
+Outputs:
+- Checkpoints saved every `--save-freq` to `checkpoints/sb3/` (`best_model.zip` from eval; `final_model.zip` at end).
+- Logs and `eval_history.csv` in `logs/sb3/`
+  - Winrate tracking: use `python eval_agent_sb3.py ...` for a one-off, or run `python plot_eval.py --logdir logs/sb3` to graph the eval callback history.
+  - TensorBoard: `tensorboard --logdir logs/sb3` (opens http://localhost:6006) to see PPO losses/entropy/etc.
 
 ## Preview
 
