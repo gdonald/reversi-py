@@ -256,7 +256,6 @@ def main():
             ent_coef=args.ent_coef,
             clip_range=args.clip_range,
             n_epochs=args.n_epochs,
-            tensorboard_log=args.logdir,
         )
         model_name = TB_LOG_NAME
         reset_steps = True
