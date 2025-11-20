@@ -2,3 +2,5 @@ numpy
 torch
 pytest
 gymnasium
+stable-baselines3
+sb3-contrib

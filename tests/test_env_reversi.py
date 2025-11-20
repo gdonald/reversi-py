@@ -41,3 +41,15 @@ def test_illegal_action_penalty():
     assert reward == -1.0
     assert terminated is True
     assert info.get("illegal_action") is True
+
+
+def test_corner_aware_bot_respects_legality():
+    from bots import CornerAwareMobilityBot
+    from reversi import Player
+
+    env = ReversiEnv()
+    game = env.game
+    bot = CornerAwareMobilityBot()
+    move = bot.select_move(game, Player.BLACK)
+    if move is not None:
+        assert move in game.get_valid_moves(Player.BLACK)
