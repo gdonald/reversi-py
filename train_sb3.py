@@ -15,11 +15,11 @@ from reversi import Player, ReversiGame
 
 # Default training hyperparameters (easy to tweak in one place)
 DEFAULT_TOTAL_TIMESTEPS = 10_000_000
-DEFAULT_N_ENVS = 8
+DEFAULT_N_ENVS = 12
 DEFAULT_LOGDIR = "logs/sb3"
 DEFAULT_CHECKPOINT_DIR = "checkpoints/sb3"
-DEFAULT_SAVE_FREQ = 50_000
-DEFAULT_EVAL_FREQ = 20_000
+DEFAULT_SAVE_FREQ = 100_000
+DEFAULT_EVAL_FREQ = 40_000
 DEFAULT_EVAL_GAMES = 50
 DEFAULT_BOT_MIX_PROB = 0.8
 DEFAULT_BOT_MIX_OPP = "heuristic"
@@ -27,7 +27,7 @@ DEFAULT_GAMMA = 0.99
 DEFAULT_GAE_LAMBDA = 0.95
 DEFAULT_LR = 5e-5
 DEFAULT_N_STEPS = 2048
-DEFAULT_BATCH_SIZE = 1024
+DEFAULT_BATCH_SIZE = 2048
 DEFAULT_ENT_COEF = 0.003
 DEFAULT_CLIP_RANGE = 0.15
 DEFAULT_N_EPOCHS = 4
@@ -216,6 +216,10 @@ def parse_args():
 
 def main():
     args = parse_args()
+
+    # Default per-process threading to 1 to avoid OpenMP/MKL oversubscription when using many envs.
+    os.environ.setdefault("OMP_NUM_THREADS", "1")
+    os.environ.setdefault("MKL_NUM_THREADS", "1")
 
     os.makedirs(args.logdir, exist_ok=True)
     os.makedirs(args.checkpoints, exist_ok=True)
