@@ -1,7 +1,6 @@
 import argparse
-from typing import Optional
+from typing import Optional, Sequence
 
-import numpy as np
 from sb3_contrib import MaskablePPO
 
 from bots import RandomBot, CornerAwareMobilityBot
@@ -56,19 +55,9 @@ def play_game(agent: MaskablePPO, bot, agent_as: Player) -> Player:
     return game.get_winner()
 
 
-def main():
-    p = argparse.ArgumentParser(description="Evaluate a MaskablePPO Reversi agent vs a bot")
-    p.add_argument("--model", required=True, help="Path to MaskablePPO .zip checkpoint")
-    p.add_argument("--games", type=int, default=20)
-    p.add_argument("--opponent", type=str, choices=["random", "heuristic"], default="heuristic")
-    p.add_argument("--device", type=str, default="auto")
-    args = p.parse_args()
-
-    model = MaskablePPO.load(args.model, device=args.device)
-    bot = make_bot(args.opponent)
-
+def eval_vs_bot(model: MaskablePPO, bot, games: int) -> dict:
     results = {"agent_black": 0, "agent_white": 0, "ties": 0}
-    for i in range(args.games):
+    for i in range(games):
         agent_as = Player.BLACK if i % 2 == 0 else Player.WHITE
         winner = play_game(model, bot, agent_as)
         if winner == agent_as:
@@ -78,14 +67,39 @@ def main():
                 results["agent_white"] += 1
         elif winner is None:
             results["ties"] += 1
+    return results
 
-    total = args.games
-    wins = results["agent_black"] + results["agent_white"]
+
+def summarize(res: dict) -> tuple:
+    total = sum(res.values())
+    wins = res["agent_black"] + res["agent_white"]
+    ties = res["ties"]
     win_rate = wins / total if total else 0.0
-    print(f"Games: {total} vs {args.opponent}")
-    print(f"Agent wins: {wins} (black {results['agent_black']}, white {results['agent_white']})")
-    print(f"Ties: {results['ties']}")
-    print(f"Win rate: {win_rate:.2%}")
+    return wins, ties, total, win_rate
+
+
+def main():
+    p = argparse.ArgumentParser(description="Evaluate a MaskablePPO Reversi agent vs baseline bots")
+    p.add_argument("--model", required=True, help="Path to MaskablePPO .zip checkpoint")
+    p.add_argument("--games", type=int, default=20)
+    p.add_argument(
+        "--opponents",
+        nargs="+",
+        choices=["random", "heuristic"],
+        default=["heuristic", "random"],
+        help="List of opponents to evaluate against",
+    )
+    p.add_argument("--device", type=str, default="auto")
+    args = p.parse_args()
+
+    model = MaskablePPO.load(args.model, device=args.device)
+
+    for opp_name in args.opponents:
+        bot = make_bot(opp_name)
+        res = eval_vs_bot(model, bot, games=args.games)
+        wins, ties, total, win_rate = summarize(res)
+        print(f"Opponent: {opp_name}")
+        print(f"  Games: {total}  Wins: {wins} (black {res['agent_black']}, white {res['agent_white']})  Ties: {ties}  Winrate: {win_rate:.2%}")
 
 
 if __name__ == "__main__":

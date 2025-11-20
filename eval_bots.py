@@ -7,12 +7,13 @@ def main():
     p = argparse.ArgumentParser(description="Evaluate heuristic vs random bots on Reversi")
     p.add_argument("--games", type=int, default=20, help="Number of games to play (will alternate colors)")
     p.add_argument("--noise", type=float, default=0.0, help="Heuristic bot tie-break noise")
+    p.add_argument("--no-randomize", action="store_true", help="Disable random opening/role swap")
     args = p.parse_args()
 
     heuristic = CornerAwareMobilityBot(noise=args.noise)
     random_bot = RandomBot()
 
-    results = play_matches(heuristic, random_bot, games=args.games)
+    results = play_matches(heuristic, random_bot, games=args.games, randomize_opening=not args.no_randomize)
 
     total = args.games
     h_wins = results["bot_a_as_black"] + results["bot_a_as_white"]

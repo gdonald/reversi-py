@@ -111,10 +111,16 @@ def play_game(bot_black, bot_white, verbose: bool = False) -> Player:
     return winner
 
 
-def play_matches(bot_a, bot_b, games: int = 20) -> dict:
+def play_matches(bot_a, bot_b, games: int = 20, randomize_opening: bool = True) -> dict:
     results = {"bot_a_as_black": 0, "bot_a_as_white": 0, "bot_b_as_black": 0, "bot_b_as_white": 0, "ties": 0}
     for i in range(games):
-        if i % 2 == 0:
+        if randomize_opening:
+            # Swap starting color randomly to reduce bias
+            swap = random.choice([True, False])
+        else:
+            swap = i % 2 == 1
+
+        if not swap:
             w = play_game(bot_a, bot_b)
             if w == Player.BLACK:
                 results["bot_a_as_black"] += 1
