@@ -8,7 +8,7 @@ from reversi import ReversiGame, Player
 class ReversiEnv(gym.Env):
     metadata = {"render_modes": ["ansi"], "render_fps": 4}
 
-    def __init__(self):
+    def __init__(self, reward_mode: str = "standard", margin_scale: float = 0.3):
         super().__init__()
         self.board_size = 8
         self.action_space = spaces.Discrete(self.board_size * self.board_size + 1)
@@ -19,8 +19,11 @@ class ReversiEnv(gym.Env):
             shape=(5, self.board_size, self.board_size),
             dtype=np.float32,
         )
+        self.reward_mode = reward_mode
+        self.margin_scale = margin_scale
         self.game = ReversiGame(ai=None)
         self.current_player = Player.BLACK
+        self.pass_count = 0
 
     def _encode_board(self):
         m = np.zeros((self.board_size, self.board_size), dtype=np.int8)
@@ -53,10 +56,18 @@ class ReversiEnv(gym.Env):
             mask[-1] = 1.0  # pass
         return mask
 
+    def _margin_reward(self, winner: Player) -> float:
+        black_count, white_count = self.game.count_pieces()
+        total = max(1, black_count + white_count)
+        margin = abs(black_count - white_count) / total
+        base = 1.0 if winner == Player.BLACK else -1.0
+        return base * (1.0 + self.margin_scale * margin)
+
     def reset(self, seed=None, options=None):
         super().reset(seed=seed)
         self.game = ReversiGame(ai=None)
         self.current_player = Player.BLACK
+        self.pass_count = 0
         return self._encode_board(), {"action_mask": self._legal_mask()}
 
     def step(self, action):
@@ -73,21 +84,42 @@ class ReversiEnv(gym.Env):
             info = {"action_mask": mask, "illegal_action": True}
             return self._encode_board(), reward, terminated, truncated, info
 
-        if action != self.board_size * self.board_size:
+        pass_action = self.board_size * self.board_size
+        if action == pass_action:
+            self.pass_count += 1
+        else:
+            self.pass_count = 0
             r, c = divmod(action, self.board_size)
             self.game.make_move(r, c, self.current_player)
+            if self.game.is_game_over():
+                terminated = True
+                winner = self.game.get_winner()
+                if winner is None:
+                    reward = 0.0
+                else:
+                    if self.reward_mode == "margin":
+                        reward = self._margin_reward(winner)
+                    else:
+                        reward = 1.0 if winner == self.current_player else -1.0
+                return (
+                    self._encode_board(),
+                    reward,
+                    terminated,
+                    truncated,
+                    {"action_mask": self._legal_mask()},
+                )
         # pass is no-op on board
 
-        # terminal check before switching
-        if self.game.is_game_over():
+        if self.pass_count >= 2:
             terminated = True
             winner = self.game.get_winner()
-            if winner == self.current_player:
-                reward = 1.0
-            elif winner is None:
+            if winner is None:
                 reward = 0.0
             else:
-                reward = -1.0
+                if self.reward_mode == "margin":
+                    reward = self._margin_reward(winner)
+                else:
+                    reward = 1.0 if winner == self.current_player else -1.0
             return (
                 self._encode_board(),
                 reward,
