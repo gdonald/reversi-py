@@ -549,23 +549,6 @@ def main():
         "--model", type=str, help="Path to trained model checkpoint (optional)"
     )
     parser.add_argument(
-        "--sims",
-        type=int,
-        default=400,
-        help="MCTS simulations for ModelAi (default: 400, increased for stronger play)",
-    )
-    parser.add_argument(
-        "--temperature",
-        type=float,
-        default=0.1,
-        help="Temperature for move selection (default: 0.1, lower = more deterministic)",
-    )
-    parser.add_argument(
-        "--no-noise",
-        action="store_true",
-        help="Disable Dirichlet noise at MCTS root (makes AI more deterministic)",
-    )
-    parser.add_argument(
         "--device",
         type=str,
         default=None,
@@ -589,13 +572,7 @@ def main():
 
     if args.model:
         model = load_model(args.model)
-        ai = ModelAi(
-            model,
-            sims=args.sims,
-            temperature=args.temperature,
-            add_noise=not args.no_noise,
-            device=str(device),
-        )
+        ai = ModelAi(model, device=str(device))
     else:
         ai = Ai()
 
