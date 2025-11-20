@@ -15,6 +15,11 @@ from model_ai import ModelAi
 from device_utils import get_device, print_device_info
 from sb3_contrib import MaskablePPO
 
+# When run as a script, ensure imports that reference the module name "reversi"
+# resolve to this instance (avoids duplicate module leading to mismatched Player enums).
+if "reversi" not in sys.modules:
+    sys.modules["reversi"] = sys.modules[__name__]
+
 
 class Ai:
     def __init__(self):
@@ -79,13 +84,14 @@ class PlayerCount(Enum):
 
 
 class SB3MaskableAi(Ai):
-    def __init__(self, model_path: str, device: str = "auto"):
+    def __init__(self, model_path: str, device: str = "auto", debug: bool = False):
         super().__init__()
         # Deferred import to avoid circular dependency at module import time.
         from env_reversi import ReversiEnv
 
         self.env = ReversiEnv()
         self.model = MaskablePPO.load(model_path, device=device)
+        self.debug = debug
 
     def get_move(self, board, current_player):
         # sync env with current game state (defensive copy to avoid aliasing)
@@ -96,6 +102,19 @@ class SB3MaskableAi(Ai):
         self.env.pass_count = 0
         obs = self.env._encode_board()
         mask = self.env._legal_mask()
+        if self.debug:
+            valid = self.env.game.get_valid_moves(current_player)
+            # Inspect board types to catch mismatches (e.g., ints instead of Player Enum)
+            types = {type(cell).__name__ for row in self.env.game.board for cell in row}
+            if not hasattr(self, "_debug_once"):
+                counts = {}
+                for row in self.env.game.board:
+                    for cell in row:
+                        counts[cell] = counts.get(cell, 0) + 1
+                center = self.env.game.board[3][3], self.env.game.board[3][4]
+                print(f"[SB3-debug] counts={counts} center={center}")
+                self._debug_once = True
+            print(f"[SB3] mask_sum={mask.sum()} valid_moves={valid} cell_types={types}")
         if mask.sum() == 0:
             fallback_moves = self.env.game.get_valid_moves(current_player)
             if fallback_moves:
@@ -115,7 +134,7 @@ class SB3MaskableAi(Ai):
 
 
 class ReversiGame:
-    def __init__(self, ai=None):
+    def __init__(self, ai=None, ai_debug: bool = False):
         self.board = [[Player.EMPTY for _ in range(8)] for _ in range(8)]
         self.current_player = Player.BLACK
         self.cursor_x = 3
@@ -124,6 +143,7 @@ class ReversiGame:
         self.human_player = Player.BLACK
         self.game_over = False
         self.ai = ai if ai is not None else Ai()
+        self.ai_debug = ai_debug
         self.simulation_mode = False
         self.initialize_board()
 
@@ -315,12 +335,18 @@ class ReversiGame:
                 and self.current_player != self.human_player
             ):
                 move = self.ai.get_move(self.board, self.current_player)
+                proposed = move
                 row_col = None
                 if move and self.is_valid_move(move[0], move[1], self.current_player):
                     row_col = move
                 elif valid_moves:
                     # Fallback to first legal move to avoid bogus skips when the AI outputs pass/invalid.
                     row_col = valid_moves[0]
+
+                if self.ai_debug:
+                    print(
+                        f"[AI] {('BLACK' if self.current_player == Player.BLACK else 'WHITE')} proposed {proposed}; using {row_col}"
+                    )
 
                 if row_col:
                     row, col = row_col
@@ -336,7 +362,6 @@ class ReversiGame:
                     if self.current_player == Player.BLACK
                     else Player.BLACK
                 )
-                time.sleep(0.25)
             else:
                 if self.handle_player_input():
                     self.current_player = (
@@ -523,11 +548,17 @@ class ReversiGame:
                     continue
 
             move = self.ai.get_move(self.board, self.current_player)
+            proposed = move
             row_col = None
             if move and self.is_valid_move(move[0], move[1], self.current_player):
                 row_col = move
             elif valid_moves:
                 row_col = valid_moves[0]
+
+            if self.ai_debug:
+                print(
+                    f"[AI] {('BLACK' if self.current_player == Player.BLACK else 'WHITE')} proposed {proposed}; using {row_col}"
+                )
 
             if row_col:
                 row, col = row_col
@@ -615,6 +646,11 @@ def main():
         action="store_true",
         help="Print detailed device information and exit",
     )
+    parser.add_argument(
+        "--debug-ai",
+        action="store_true",
+        help="Print the AI's proposed move and the move actually played (helps confirm inference is used)",
+    )
 
     args = parser.parse_args()
 
@@ -630,14 +666,14 @@ def main():
         sys.exit(1)
 
     if args.sb3_model:
-        ai = SB3MaskableAi(args.sb3_model, device=str(device))
+        ai = SB3MaskableAi(args.sb3_model, device=str(device), debug=args.debug_ai)
     elif args.model:
         model = load_model(args.model)
         ai = ModelAi(model, device=str(device))
     else:
         ai = Ai()
 
-    game = ReversiGame(ai)
+    game = ReversiGame(ai, ai_debug=args.debug_ai)
     ai.game_ref = game
 
     if hasattr(ai, "game_ref"):
