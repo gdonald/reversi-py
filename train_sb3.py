@@ -15,7 +15,7 @@ from reversi import Player, ReversiGame
 
 # Default training hyperparameters (easy to tweak in one place)
 DEFAULT_TOTAL_TIMESTEPS = 10_000_000
-DEFAULT_N_ENVS = 24
+DEFAULT_N_ENVS = 32
 DEFAULT_LOGDIR = "logs/sb3"
 DEFAULT_CHECKPOINT_DIR = "checkpoints/sb3"
 DEFAULT_SAVE_FREQ = 100_000

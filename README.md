@@ -26,7 +26,7 @@ Python 3.10+ recommended. Default device is CPU; override with `--device mps|cud
 
 ```
 total_timesteps = 10_000_000
-n_envs = 24
+n_envs = 32
 bot_mix_prob = 0.8        # fraction of episodes vs heuristic opponent
 eval_freq = 40_000        # timesteps between evals
 eval_games = 50
