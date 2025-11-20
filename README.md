@@ -1,50 +1,55 @@
 # reversi-py
 
-## Play
+Self-contained Reversi environment plus Stable Baselines3 training harness with action masking.
 
-With no training:
+## Installation
+
+```
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+Dependencies are pinned; Python 3.10+ recommended. MPS/CUDA selection is handled by SB3 (`--device auto`).
+
+## Quickstart
+
+Play the console game:
 
 ```
 python reversi.py
 ```
 
-After lots of training:
-
-```
-python reversi.py --model checkpoints/best.pt
-```
-
-## Bots and eval
-
-Heuristic vs random (alternating colors):
-
-```
-python eval_bots.py --games 50
-```
-
-## SB3 training
-
-MaskablePPO with MlpPolicy and action masking:
+Train a MaskablePPO agent (8 environments, checkpoints + TensorBoard logs):
 
 ```
 python train_sb3.py --total-timesteps 500000 --n-envs 8 --checkpoints checkpoints/sb3 --logdir logs/sb3
 ```
 
-Evaluate a trained agent vs heuristic or random:
+Monitor training curves:
 
 ```
-python eval_agent_sb3.py --model checkpoints/sb3/final_model.zip --games 50 --opponent heuristic
+tensorboard --logdir logs/sb3
 ```
 
-## Train
+Evaluate a trained agent vs heuristic or random bots:
 
 ```
-python train_loop.py \
-  --games-per-iter 64 \
-  --train-steps 1000 \
-  --batch-size 512 \
-  --mcts-sims 200
+python eval_agent_sb3.py --model checkpoints/sb3/final_model.zip --games 50 --opponents heuristic random
+python eval_agent_sb3.py --model checkpoints/sb3/best_model.zip --games 10 --render-games 1
 ```
+
+Run heuristic vs random baseline:
+
+```
+python eval_bots.py --games 50
+```
+
+## Notes
+
+- Action masking prevents illegal moves; pass action is explicit and two passes end a game.
+- Training config is saved to `logs/sb3/training_config.json` for reproducibility.
+- Checkpoints are written every `--save-freq`; best model (by periodic eval) is saved to `checkpoints/sb3/best_model.zip`.
 
 ## Preview
 

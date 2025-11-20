@@ -27,12 +27,13 @@ def agent_action(model: MaskablePPO, env: ReversiEnv) -> Optional[tuple]:
     return r, c
 
 
-def play_game(agent: MaskablePPO, bot, agent_as: Player) -> Player:
+def play_game(agent: MaskablePPO, bot, agent_as: Player, capture_render: bool = False):
     game = ReversiGame(ai=None)
     env = ReversiEnv()
     env.game = game
 
     current = Player.BLACK
+    frames = []
 
     while True:
         env.current_player = current
@@ -45,6 +46,8 @@ def play_game(agent: MaskablePPO, bot, agent_as: Player) -> Player:
                 move = bot.select_move(game, current)
             if move is not None:
                 game.make_move(move[0], move[1], current)
+            if capture_render:
+                frames.append(env.render())
         else:
             other = Player.WHITE if current == Player.BLACK else Player.BLACK
             if not game.get_valid_moves(other):
@@ -52,14 +55,14 @@ def play_game(agent: MaskablePPO, bot, agent_as: Player) -> Player:
 
         current = Player.WHITE if current == Player.BLACK else Player.BLACK
 
-    return game.get_winner()
+    return game.get_winner(), frames
 
 
 def eval_vs_bot(model: MaskablePPO, bot, games: int) -> dict:
     results = {"agent_black": 0, "agent_white": 0, "ties": 0}
     for i in range(games):
         agent_as = Player.BLACK if i % 2 == 0 else Player.WHITE
-        winner = play_game(model, bot, agent_as)
+        winner, _ = play_game(model, bot, agent_as, capture_render=False)
         if winner == agent_as:
             if agent_as == Player.BLACK:
                 results["agent_black"] += 1
@@ -90,16 +93,39 @@ def main():
         help="List of opponents to evaluate against",
     )
     p.add_argument("--device", type=str, default="auto")
+    p.add_argument("--render-games", type=int, default=0, help="Number of games to render to stdout starting from the first matchup")
+    p.add_argument("--render-opponent", type=str, default=None, choices=["random", "heuristic"], help="Render against this opponent (defaults to first in list)")
     args = p.parse_args()
 
     model = MaskablePPO.load(args.model, device=args.device)
 
-    for opp_name in args.opponents:
+    for idx, opp_name in enumerate(args.opponents):
         bot = make_bot(opp_name)
         res = eval_vs_bot(model, bot, games=args.games)
         wins, ties, total, win_rate = summarize(res)
         print(f"Opponent: {opp_name}")
         print(f"  Games: {total}  Wins: {wins} (black {res['agent_black']}, white {res['agent_white']})  Ties: {ties}  Winrate: {win_rate:.2%}")
+        should_render = args.render_games and (
+            (args.render_opponent is None and idx == 0)
+            or (args.render_opponent == opp_name)
+        )
+        if should_render:
+            to_render = min(args.render_games, args.games)
+            print(f"\nRendering {to_render} sample game(s) vs {opp_name}")
+            for i in range(to_render):
+                agent_as = Player.BLACK if i % 2 == 0 else Player.WHITE
+                winner, frames = play_game(
+                    model,
+                    bot,
+                    agent_as,
+                    capture_render=True,
+                )
+                label = "BLACK" if agent_as == Player.BLACK else "WHITE"
+                print(f"\nGame {i+1} (agent as {label}): winner={winner}")
+                for t, frame in enumerate(frames, 1):
+                    print(f"\nTurn {t} ({'B' if t % 2 == 1 else 'W'} to move before action)")
+                    print(frame)
+            print()
 
 
 if __name__ == "__main__":
