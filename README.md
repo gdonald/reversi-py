@@ -31,13 +31,14 @@ bot_mix_prob = 0.8        # fraction of episodes vs heuristic opponent
 eval_freq = 40_000        # timesteps between evals
 eval_games = 50
 learning_rate = 3e-4
-ent_coef = 0.02
+ent_coef = 0.05
 clip_range = 0.3
 n_steps = 2048
 batch_size = 2048
 gamma = 0.99
 gae_lambda = 0.95
 n_epochs = 4
+target_kl = 0.02
 checkpoints = checkpoints/sb3
 logdir = logs/sb3
 ```
