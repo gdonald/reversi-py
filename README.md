@@ -1,6 +1,10 @@
 # reversi-py
 
-Self-contained Reversi environment plus Stable Baselines3 (MaskablePPO) training harness with action masking and heuristic sparring.
+Vibe coded experiments with Reversi in a deep learning environment.
+
+###
+
+![https://gdonald.github.io/88x31/i/vibe_coded.gif](https://gdonald.github.io/88x31/i/vibe_coded.gif)
 
 ## Install
 
