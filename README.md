@@ -1,10 +1,6 @@
 # reversi-py
 
-Vibe coded experiments with Reversi in a deep learning environment.
-
-###
-
-![https://gdonald.github.io/88x31/i/vibe_coded.gif](https://gdonald.github.io/88x31/i/vibe_coded.gif)
+Experiments with Reversi in a deep learning environment.
 
 ## Install
 
